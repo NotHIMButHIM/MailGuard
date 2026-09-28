@@ -77,16 +77,19 @@ async def lifespan(app: FastAPI):
     # Load ML models into registry
     get_model_registry()
 
-    # Start background Gmail auto-filter worker
-    task = asyncio.create_task(_background_gmail_autofilter())
+    # Start background Gmail auto-filter worker only if explicitly enabled
+    task = None
+    if os.getenv("ENABLE_BACKGROUND_POLLING", "false").lower() == "true":
+        task = asyncio.create_task(_background_gmail_autofilter())
     try:
         yield
     finally:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+        if task:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
 
 app = FastAPI(
@@ -136,8 +139,10 @@ async def favicon():
     return Response(status_code=204)
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root(request: Request):
+    if request.method == "HEAD":
+        return Response(status_code=200)
     token = request.cookies.get("mailguard_token")
     if token:
         try:
@@ -149,6 +154,11 @@ async def root(request: Request):
         except Exception:
             pass
     return RedirectResponse(url="/login")
+
+
+@app.api_route("/health", methods=["GET", "HEAD"])
+async def root_health():
+    return Response(content="OK", media_type="text/plain", status_code=200)
 
 
 if __name__ == "__main__":
