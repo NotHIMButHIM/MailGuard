@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: mailguard-backend
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PROJECT_NAME
+        value: Mailguard
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 120
+      - key: CORS_ORIGINS
+        value: '["*"]'
+      - key: ADMIN_EMAIL
+        value: admin@mailguard.enterprise
+      - key: ADMIN_PASSWORD
+        value: AdminPass@2026!
+      - key: ADMIN_NAME
+        value: System Administrator

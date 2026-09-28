@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # 🛡️ Mailguard Secure Email Gateway Web & Worker Service
+  mailguard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mailguard_gateway
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - DATABASE_URL=postgresql+asyncpg://mailguard_user:mailguard_secure_pass@db:5432/mailguard_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=mailguard_super_secret_enterprise_key_2026_prod!
+      - ACCESS_TOKEN_EXPIRE_MINUTES=120
+      - ADMIN_EMAIL=admin@mailguard.enterprise
+      - ADMIN_PASSWORD=AdminPass@2026!
+      - STORAGE_DIR=/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - mailguard_storage:/app/storage
+    networks:
+      - mailguard_network
+
+  # 🐘 Enterprise PostgreSQL Relational Database
+  db:
+    image: postgres:16-alpine
+    container_name: mailguard_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=mailguard_user
+      - POSTGRES_PASSWORD=mailguard_secure_pass
+      - POSTGRES_DB=mailguard_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mailguard_user -d mailguard_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mailguard_network
+
+  # ⚡ In-Memory Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: mailguard_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mailguard_network
+
+volumes:
+  pg_data:
+    driver: local
+  redis_data:
+    driver: local
+  mailguard_storage:
+    driver: local
+
+networks:
+  mailguard_network:
+    driver: bridge
