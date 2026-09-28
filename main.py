@@ -30,27 +30,34 @@ settings = get_settings()
 
 
 async def _background_gmail_autofilter():
-    """Aggressive background auto-filter: polls Gmail every 5 seconds for near-instant threat removal."""
+    """Background auto-filter: periodically polls Gmail without locking database or starving web traffic."""
+    await asyncio.sleep(15)  # Allow server to fully bind and handle requests first
     while True:
         try:
-            await asyncio.sleep(5)
             from mailguard_app.database import AsyncSessionLocal
             from mailguard_app.models.user import User
             from mailguard_app.services.gmail_sync import gmail_sync_service
             from sqlalchemy import select
 
+            users_to_sync = []
             async with AsyncSessionLocal() as session:
-                stmt = select(User).where(User.is_google_user == True, User.google_access_token != None)
-                users = (await session.execute(stmt)).scalars().all()
-                for u in users:
-                    try:
-                        await gmail_sync_service.sync_and_filter_user_emails(u, max_results=20, db=session)
-                    except Exception:
-                        continue
+                stmt = select(User).where(User.is_google_user == True, User.google_access_token.is_not(None))
+                users_to_sync = (await session.execute(stmt)).scalars().all()
+
+            for u in users_to_sync:
+                try:
+                    async with AsyncSessionLocal() as user_session:
+                        await asyncio.wait_for(
+                            gmail_sync_service.sync_and_filter_user_emails(u, max_results=10, db=user_session),
+                            timeout=25.0
+                        )
+                except Exception:
+                    continue
         except asyncio.CancelledError:
             break
         except Exception:
-            await asyncio.sleep(3)
+            pass
+        await asyncio.sleep(60)
 
 
 @asynccontextmanager
