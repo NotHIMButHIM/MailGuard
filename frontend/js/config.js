@@ -9,10 +9,8 @@
                           window.location.hostname === "0.0.0.0";
     
     // In local development, default to local FastAPI server on 8000
-    // In production on Netlify, either set your Render backend URL here:
-    // e.g., "https://mailguard-backend.onrender.com"
-    // OR leave as "" to use Netlify's _redirects proxy rewrite (/api/* -> Render backend)
-    let defaultApiBase = isLocalhost ? "http://localhost:8000" : "";
+    // In production on Netlify, defaults to Render backend
+    let defaultApiBase = isLocalhost ? "http://localhost:8000" : "https://mailguard-backend-ewuc.onrender.com";
 
     // Allow overriding from localStorage for easy switching in the browser
     const storedApiBase = localStorage.getItem("mailguard_api_base_url");

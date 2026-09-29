@@ -59,7 +59,10 @@ API Documentation will be available at `http://localhost:8000/docs`.
 | `ENVIRONMENT` | `production` | Run environment |
 | `SECRET_KEY` | *(Click "Generate" on Render)* | JWT encryption key |
 | `CORS_ORIGINS` | `["*"]` | Allowed CORS origins |
-| `FRONTEND_URL` | `https://your-site.netlify.app` | Netlify frontend URL |
+| `FRONTEND_URL` | `https://mailguardapp.netlify.app` | Netlify frontend URL |
+| `GOOGLE_CLIENT_ID` | `xxxx.apps.googleusercontent.com` | Google Cloud OAuth Client ID |
+| `GOOGLE_CLIENT_SECRET` | `GOCSPX-xxxx` | Google Cloud OAuth Client Secret |
+| `GOOGLE_REDIRECT_URI` | `https://<render-app>.onrender.com/api/v1/auth/google/callback` | Callback URL on Render |
 | `ADMIN_EMAIL` | `admin@mailguard.enterprise` | Initial Admin Email |
 | `ADMIN_PASSWORD` | `AdminPass@2026!` | Initial Admin Password |
 | `ADMIN_NAME` | `System Administrator` | Admin Display Name |

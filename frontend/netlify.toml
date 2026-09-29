@@ -25,10 +25,9 @@
   to = "/portal/admin.html"
   status = 200
 
-# Optional Reverse Proxy to Render backend (Avoids all CORS issues):
-# Replace https://mailguard-backend.onrender.com with your actual Render service URL
-# [[redirects]]
-#   from = "/api/*"
-#   to = "https://mailguard-backend.onrender.com/api/:splat"
-#   status = 200
-#   force = true
+# Reverse Proxy to Render backend (Avoids CORS issues):
+[[redirects]]
+  from = "/api/*"
+  to = "https://mailguard-backend-ewuc.onrender.com/api/:splat"
+  status = 200
+  force = true
