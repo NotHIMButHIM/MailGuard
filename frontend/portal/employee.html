@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Prevention Portal - Mailguard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="../css/main.css">
+    <script src="../js/config.js"></script>
+    <script src="../js/main.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg border-bottom border-secondary border-opacity-25 px-4 py-3 glass-panel rounded-0">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="./employee.html">
+                <i class="bi bi-shield-lock-fill text-info fs-4"></i>
+                <span class="brand-gradient fs-5 tracking-wide">MAILGUARD</span>
+            </a>
+            <div class="d-flex align-items-center gap-3">
+                <a href="./employee.html" class="nav-link text-info fw-semibold active">
+                    <i class="bi bi-shield-check me-1"></i> Prevention & Inbox
+                </a>
+                <button type="button" onclick="toggleTheme()" class="theme-toggle-btn btn-sm" title="Toggle Theme">
+                    <i class="theme-toggle-icon bi bi-sun-fill"></i>
+                </button>
+                <span id="user-badge" class="badge bg-dark border border-secondary text-info px-3 py-2"></span>
+                <button onclick="logout()" class="btn btn-outline-danger btn-sm px-3">
+                    <i class="bi bi-box-arrow-right me-1"></i> Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-fluid py-4 px-4">
+        <div class="row g-4">
+            <!-- Left Column: Rules & Manual Scan -->
+            <div class="col-lg-4">
+                <div class="glass-panel p-4 mb-4">
+                    <h5 class="d-flex align-items-center gap-2 mb-3 text-info">
+                        <i class="bi bi-slash-circle"></i> Spam Pre-Blocking Rules
+                    </h5>
+                    <p class="text-muted small">Block spam beforehand by defining rules. Emails matching your criteria are blocked before entering your inbox.</p>
+
+                    <form id="preventionForm" onsubmit="addPreventionRule(event)">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Rule Type</label>
+                            <select id="ruleType" class="form-select" required>
+                                <option value="BLOCK_DOMAIN">Block Sender Domain (e.g. badspammer.com)</option>
+                                <option value="BLOCK_SENDER">Block Specific Sender (e.g. promo@spam.net)</option>
+                                <option value="KEYWORD_FILTER">Keyword Filter (e.g. wire transfer, lottery)</option>
+                                <option value="REGEX_RULE">Custom Regex Pattern</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Pattern / Target</label>
+                            <input type="text" id="rulePattern" class="form-control" placeholder="spammer.com or keyword" required>
+                        </div>
+                        <button type="submit" class="btn btn-info w-100 py-2">
+                            <i class="bi bi-plus-circle me-1"></i> Add Prevention Rule
+                        </button>
+                    </form>
+                </div>
+
+                <div class="glass-panel p-4">
+                    <h5 class="d-flex align-items-center gap-2 mb-3 text-light">
+                        <i class="bi bi-search"></i> Manual Scan Email
+                    </h5>
+                    <form id="manualScanForm" onsubmit="scanEmailManual(event)">
+                        <div class="mb-2">
+                            <input type="email" id="scanSender" class="form-control form-control-sm" placeholder="Sender email" required>
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" id="scanSubject" class="form-control form-control-sm" placeholder="Subject" required>
+                        </div>
+                        <div class="mb-3">
+                            <textarea id="scanBody" class="form-control form-control-sm" rows="3" placeholder="Message content..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-outline-info w-100 btn-sm">
+                            <i class="bi bi-shield-shaded me-1"></i> Scan Message
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Column: Active Rules & Inspected Inbox -->
+            <div class="col-lg-8">
+                <div class="glass-panel p-4 mb-4">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h5 class="mb-0 text-light"><i class="bi bi-sliders me-2 text-info"></i>Active Prevention Rules</h5>
+                        <span id="rulesCountBadge" class="badge bg-secondary">0 Rules</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-dark-custom align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Target / Pattern</th>
+                                    <th>Hits</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="preventionRulesTable">
+                                <tr><td colspan="5" class="text-center text-muted py-3">Loading rules...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <h5 class="mb-0 text-light"><i class="bi bi-inbox-fill me-2 text-info"></i>My Inspected Inbox</h5>
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 d-flex align-items-center gap-1 small py-1 px-2">
+                                <span class="spinner-grow spinner-grow-sm" style="width: 0.5rem; height: 0.5rem;" role="status"></span>
+                                Auto-Filter Active
+                            </span>
+                        </div>
+                        <button onclick="syncGmail(false)" id="syncBtn" class="btn btn-outline-light btn-sm d-flex align-items-center gap-1">
+                            <i class="bi bi-arrow-repeat"></i>
+                            <span>Sync Now</span>
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-dark-custom align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Verdict</th>
+                                    <th>Sender</th>
+                                    <th>Subject</th>
+                                    <th>Spam Score</th>
+                                    <th>Status</th>
+                                    <th>Received</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="emailsTable">
+                                <tr><td colspan="7" class="text-center text-muted py-3">Loading inbox...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Email Deep Review Modal -->
+    <div class="modal fade" id="emailReviewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <span id="reviewVerdictBadge" class="badge"></span>
+                        <h5 class="modal-title fw-bold text-truncate mb-0" id="reviewSubject" style="max-width: 650px;"></h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="email-meta-card">
+                                <div class="text-muted small mb-1">Sender & Recipient</div>
+                                <div class="fw-semibold text-truncate"><span class="text-muted">From:</span> <span id="reviewSender"></span></div>
+                                <div class="small text-truncate"><span class="text-muted">To:</span> <span id="reviewRecipient"></span></div>
+                                <div class="small text-muted mt-1"><i class="bi bi-clock me-1"></i><span id="reviewDate"></span></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="email-meta-card">
+                                <div class="text-muted small mb-1">Security Isolation Status</div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span id="reviewStatusBadge" class="badge bg-secondary"></span>
+                                    <span id="reviewIsolationBadge" class="badge bg-dark border border-secondary"></span>
+                                </div>
+                                <div class="small text-muted mt-2" id="reviewNotice"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="stat-card p-3">
+                                <div class="text-muted small">Spam Probability</div>
+                                <div id="reviewSpamScore" class="stat-value text-warning fs-3">0%</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card p-3">
+                                <div class="text-muted small">Phishing Probability</div>
+                                <div id="reviewPhishingScore" class="stat-value text-danger fs-3">0%</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row g-3 h-100">
+                                <div class="col-7">
+                                    <div class="stat-card p-3 h-100">
+                                        <div class="text-muted small">Domain Authentication</div>
+                                        <div class="d-flex flex-wrap gap-1 mt-2">
+                                            <span id="reviewSpfBadge" class="badge bg-secondary" style="font-size: 0.7rem;">SPF</span>
+                                            <span id="reviewDkimBadge" class="badge bg-secondary" style="font-size: 0.7rem;">DKIM</span>
+                                            <span id="reviewDmarcBadge" class="badge bg-secondary" style="font-size: 0.7rem;">DMARC</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-5">
+                                    <div class="stat-card p-3 h-100">
+                                        <div class="text-muted small">DLP & Sandbox</div>
+                                        <div id="reviewDlpStatus" class="small fw-semibold mt-1 text-success">Clean</div>
+                                        <div id="reviewSandboxStatus" class="small text-muted">No attachments</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="reviewDlpContainer" class="d-none mb-4">
+                        <div class="alert alert-danger py-2 px-3 small border-0 bg-danger bg-opacity-10 text-danger">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            <span class="fw-bold">Sensitive Data Leaks Detected:</span>
+                            <div id="reviewDlpList" class="mt-1"></div>
+                        </div>
+                    </div>
+
+                    <div id="reviewAttachmentsContainer" class="d-none mb-4">
+                        <h6 class="text-muted small mb-2"><i class="bi bi-paperclip me-1"></i>Attachments Inspected</h6>
+                        <div id="reviewAttachmentsList" class="d-flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <div id="reviewSecurityBanner" class="mb-3"></div>
+
+                    <div>
+                        <ul class="nav nav-tabs mb-3" id="emailBodyTabs" role="tablist">
+                            <li class="nav-item">
+                                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-plain-body" type="button">
+                                    <i class="bi bi-file-text me-1"></i> Plain Text View
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-html-body" type="button">
+                                    <i class="bi bi-code-slash me-1"></i> Isolated HTML Preview
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="tab-plain-body">
+                                <div id="reviewPlainBody" class="email-body-box"></div>
+                            </div>
+                            <div class="tab-pane fade" id="tab-html-body">
+                                <iframe id="reviewHtmlFrame" sandbox="" style="width: 100%; height: 350px; border: 1px solid var(--border-color); border-radius: 8px; background: white;"></iframe>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="text-muted small" id="reviewFooterId"></span>
+                        <div id="reviewTicketStatusBox"></div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" id="btnRequestRelease" class="btn btn-warning btn-sm d-none" onclick="openReleaseModal()">
+                            <i class="bi bi-ticket-perforated me-1"></i> Request Admin Release
+                        </button>
+                        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Release Request Ticket Modal -->
+    <div class="modal fade" id="releaseTicketModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-ticket-perforated-fill text-warning me-2"></i>Request Email Release</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="releaseTicketForm" onsubmit="submitReleaseTicket(event)">
+                    <div class="modal-body p-4">
+                        <input type="hidden" id="releaseEmailId">
+                        <div class="mb-3 p-3 bg-dark rounded border border-secondary border-opacity-25 small">
+                            <div class="text-truncate mb-1"><span class="text-muted">Subject:</span> <strong id="releaseSubject" class="text-light"></strong></div>
+                            <div class="text-truncate mb-2"><span class="text-muted">Sender:</span> <span id="releaseSender" class="text-light"></span></div>
+                            <div class="d-flex gap-3">
+                                <div><span class="text-muted">Spam Score:</span> <strong id="releaseSpamScore" class="text-warning"></strong></div>
+                                <div><span class="text-muted">Threat Verdict:</span> <strong id="releaseVerdict" class="text-danger"></strong></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted fw-semibold">Justification for Release <span class="text-danger">*</span></label>
+                            <textarea id="releaseJustification" class="form-control" rows="4" placeholder="Explain why this email should be released (e.g., legitimate vendor quotation, false positive spam classification, verified external business partner)..." required></textarea>
+                            <div class="form-text text-muted small mt-1">This request ticket will be sent directly to the SOC Security Administrator for review.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" id="btnSubmitTicket" class="btn btn-warning px-4">
+                            <i class="bi bi-send-fill me-1"></i> Submit Release Ticket
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentReviewEmail = null;
+
+        async function loadPreventionRules() {
+            try {
+                const res = await apiRequest("/api/v1/prevention/rules");
+                const rules = await res.json();
+                document.getElementById("rulesCountBadge").innerText = rules.length + " Rules";
+                const tbody = document.getElementById("preventionRulesTable");
+                if (rules.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No active prevention rules configured. Add one above.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = rules.map(r => `
+                    <tr>
+                        <td><span class="badge bg-dark border border-secondary text-info">${r.rule_type}</span></td>
+                        <td class="font-monospace small text-light">${r.pattern}</td>
+                        <td><span class="badge bg-secondary">${r.hit_count || 0}</span></td>
+                        <td><span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25">ACTIVE</span></td>
+                        <td>
+                            <button class="btn btn-outline-danger btn-sm py-0 px-2" onclick="deleteRule(${r.id})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join("");
+            } catch(err) {
+                console.error(err);
+            }
+        }
+
+        async function addPreventionRule(e) {
+            e.preventDefault();
+            const rule_type = document.getElementById("ruleType").value;
+            const pattern = document.getElementById("rulePattern").value.trim();
+            try {
+                await apiRequest("/api/v1/prevention/rules", {
+                    method: "POST",
+                    body: JSON.stringify({ rule_type, pattern, action: "BLOCK" })
+                });
+                document.getElementById("rulePattern").value = "";
+                loadPreventionRules();
+            } catch(err) {
+                alert("Error adding rule: " + err.message);
+            }
+        }
+
+        async function deleteRule(id) {
+            if (!confirm("Are you sure you want to delete this prevention rule?")) return;
+            try {
+                await apiRequest(`/api/v1/prevention/rules/${id}`, { method: "DELETE" });
+                loadPreventionRules();
+            } catch(err) {
+                alert("Error deleting rule: " + err.message);
+            }
+        }
+
+        async function loadEmails() {
+            try {
+                const res = await apiRequest("/api/v1/emails/?limit=50");
+                const emails = await res.json();
+                const tbody = document.getElementById("emailsTable");
+                if (emails.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No emails inspected yet. Click "Sync Now" to fetch from Gmail or use "Manual Scan".</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = emails.map(m => {
+                    let verdictClass = "badge-clean";
+                    if (m.threat_verdict === "SPAM") verdictClass = "badge-spam";
+                    if (m.threat_verdict === "PHISHING") verdictClass = "badge-phishing";
+                    if (m.status === "QUARANTINED") verdictClass = "badge-quarantined";
+                    if (m.status === "ISOLATED") verdictClass = "badge-isolated";
+                    if (m.status === "BLOCKED") verdictClass = "badge-blocked";
+
+                    return `
+                        <tr>
+                            <td><span class="badge ${verdictClass}">${m.threat_verdict || m.status}</span></td>
+                            <td class="text-truncate" style="max-width: 160px;" title="${m.sender}">${m.sender}</td>
+                            <td class="text-truncate fw-semibold" style="max-width: 220px;" title="${m.subject || ''}">${m.subject || '(No Subject)'}</td>
+                            <td><span class="small font-monospace">${formatScore(m.spam_score)}</span></td>
+                            <td><span class="badge bg-dark border border-secondary">${m.status}</span></td>
+                            <td class="text-muted small">${new Date(m.created_at).toLocaleDateString()}</td>
+                            <td>
+                                <button class="btn btn-outline-info btn-sm py-0 px-2" onclick="reviewEmail(${m.id})">
+                                    <i class="bi bi-eye"></i> Inspect
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join("");
+            } catch(err) {
+                console.error(err);
+            }
+        }
+
+        async function reviewEmail(id) {
+            try {
+                const res = await apiRequest(`/api/v1/emails/${id}`);
+                const email = await res.json();
+                currentReviewEmail = email;
+
+                document.getElementById("reviewSubject").innerText = email.subject || "(No Subject)";
+                document.getElementById("reviewSender").innerText = email.sender;
+                document.getElementById("reviewRecipient").innerText = email.recipient;
+                document.getElementById("reviewDate").innerText = new Date(email.created_at).toLocaleString();
+                document.getElementById("reviewSpamScore").innerText = formatScore(email.spam_score);
+                document.getElementById("reviewPhishingScore").innerText = formatScore(email.phishing_score);
+                document.getElementById("reviewFooterId").innerText = `Message ID: #${email.id}`;
+
+                let verdictClass = "badge-clean";
+                if (email.threat_verdict === "SPAM") verdictClass = "badge-spam";
+                if (email.threat_verdict === "PHISHING") verdictClass = "badge-phishing";
+                if (email.status === "QUARANTINED") verdictClass = "badge-quarantined";
+                if (email.status === "ISOLATED") verdictClass = "badge-isolated";
+
+                const verdictBadge = document.getElementById("reviewVerdictBadge");
+                verdictBadge.className = `badge ${verdictClass} fs-6`;
+                verdictBadge.innerText = email.threat_verdict;
+
+                const statusBadge = document.getElementById("reviewStatusBadge");
+                statusBadge.className = `badge ${verdictClass}`;
+                statusBadge.innerText = email.status;
+
+                document.getElementById("reviewIsolationBadge").innerText = "MODE: " + email.isolation_mode;
+
+                const spfBadge = document.getElementById("reviewSpfBadge");
+                spfBadge.innerText = "SPF: " + email.spf_result;
+                spfBadge.className = "badge " + (email.spf_result === "PASS" ? "bg-success" : "bg-danger");
+
+                const dkimBadge = document.getElementById("reviewDkimBadge");
+                dkimBadge.innerText = "DKIM: " + email.dkim_result;
+                dkimBadge.className = "badge " + (email.dkim_result === "PASS" ? "bg-success" : "bg-danger");
+
+                const dmarcBadge = document.getElementById("reviewDmarcBadge");
+                dmarcBadge.innerText = "DMARC: " + email.dmarc_result;
+                dmarcBadge.className = "badge " + (email.dmarc_result === "PASS" ? "bg-success" : "bg-danger");
+
+                const dlpBox = document.getElementById("reviewDlpContainer");
+                if (email.dlp_incidents && email.dlp_incidents.length > 0) {
+                    dlpBox.classList.remove("d-none");
+                    document.getElementById("reviewDlpStatus").innerText = `${email.dlp_incidents.length} incident(s)`;
+                    document.getElementById("reviewDlpStatus").className = "small fw-semibold mt-1 text-danger";
+                    document.getElementById("reviewDlpList").innerHTML = email.dlp_incidents.map(d => `
+                        <div>• Pattern <strong>${d.pattern_type}</strong> (Severity: ${d.severity}): <code>${d.masked_sample}</code></div>
+                    `).join("");
+                } else {
+                    dlpBox.classList.add("d-none");
+                    document.getElementById("reviewDlpStatus").innerText = "Clean";
+                    document.getElementById("reviewDlpStatus").className = "small fw-semibold mt-1 text-success";
+                }
+
+                const banner = document.getElementById("reviewSecurityBanner");
+                if (email.threat_verdict !== "CLEAN") {
+                    banner.innerHTML = `
+                        <div class="alert alert-warning py-2 px-3 small border-0 bg-warning bg-opacity-10 text-warning d-flex align-items-center gap-2">
+                            <i class="bi bi-shield-exclamation fs-5"></i>
+                            <div><strong>Threat Isolation Active:</strong> External scripts, malicious trackers, and active payload links in this email have been defanged by Mailguard.</div>
+                        </div>
+                    `;
+                } else {
+                    banner.innerHTML = "";
+                }
+
+                document.getElementById("reviewPlainBody").innerText = email.body_plain || "(Empty message content)";
+
+                const iframe = document.getElementById("reviewHtmlFrame");
+                iframe.srcdoc = email.sanitized_body_html || `<div style="font-family:sans-serif;color:#333;padding:1rem;">${email.body_plain || 'No content'}</div>`;
+
+                const btnRelease = document.getElementById("btnRequestRelease");
+                const ticketBox = document.getElementById("reviewTicketStatusBox");
+                btnRelease.classList.add("d-none");
+                ticketBox.innerHTML = "";
+
+                if (email.status === "QUARANTINED" || email.status === "ISOLATED") {
+                    try {
+                        const ticketRes = await apiRequest(`/api/v1/quarantine/requests/email/${email.id}`);
+                        if (ticketRes.ok) {
+                            const ticket = await ticketRes.json();
+                            let tBadge = "bg-warning text-dark";
+                            if (ticket.status === "APPROVED") tBadge = "bg-success text-light";
+                            if (ticket.status === "REJECTED") tBadge = "bg-danger text-light";
+                            ticketBox.innerHTML = `<span class="badge ${tBadge}">Release Request Ticket #${ticket.id}: ${ticket.status}</span>`;
+                        } else {
+                            btnRelease.classList.remove("d-none");
+                        }
+                    } catch(err) {
+                        btnRelease.classList.remove("d-none");
+                    }
+                }
+
+                const modalEl = document.getElementById("emailReviewModal");
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            } catch(err) {
+                alert("Failed to load email review: " + err.message);
+            }
+        }
+
+        function openReleaseModal() {
+            if (!currentReviewEmail) return;
+            document.getElementById("releaseEmailId").value = currentReviewEmail.id;
+            document.getElementById("releaseSubject").innerText = currentReviewEmail.subject || "(No Subject)";
+            document.getElementById("releaseSender").innerText = currentReviewEmail.sender;
+            document.getElementById("releaseSpamScore").innerText = formatScore(currentReviewEmail.spam_score);
+            document.getElementById("releaseVerdict").innerText = currentReviewEmail.threat_verdict;
+            document.getElementById("releaseJustification").value = "";
+
+            const ticketModal = bootstrap.Modal.getOrCreateInstance(document.getElementById("releaseTicketModal"));
+            ticketModal.show();
+        }
+
+        async function submitReleaseTicket(e) {
+            e.preventDefault();
+            const email_id = parseInt(document.getElementById("releaseEmailId").value);
+            const justification = document.getElementById("releaseJustification").value.trim();
+            const btn = document.getElementById("btnSubmitTicket");
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Submitting...';
+
+            try {
+                const res = await apiRequest("/api/v1/quarantine/requests", {
+                    method: "POST",
+                    body: JSON.stringify({ email_id, justification })
+                });
+                const out = await res.json();
+                const ticketModal = bootstrap.Modal.getInstance(document.getElementById("releaseTicketModal"));
+                if (ticketModal) ticketModal.hide();
+                alert(`Release request ticket #${out.id} successfully submitted to SOC Administrator.`);
+                await reviewEmail(email_id);
+            } catch(err) {
+                alert("Failed to submit release ticket: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-send-fill me-1"></i> Submit Release Ticket';
+            }
+        }
+
+        async function syncGmail(silent = false) {
+            const btn = document.getElementById("syncBtn");
+            if (!silent && btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Syncing...';
+            }
+            try {
+                const res = await apiRequest("/api/v1/emails/sync-gmail", { method: "POST" });
+                const data = await res.json();
+                if (data.status === "completed") {
+                    if (!silent && data.synced_count > 0) {
+                        alert(`Synced ${data.synced_count} emails from Gmail.`);
+                    }
+                    loadEmails();
+                } else if (!silent && (data.status === "skipped" || data.status === "error")) {
+                    alert(data.message);
+                }
+            } catch(err) {
+                if (!silent) alert(err.message);
+            } finally {
+                if (!silent && btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Sync Now';
+                }
+            }
+        }
+
+        async function scanEmailManual(e) {
+            e.preventDefault();
+            const sender = document.getElementById("scanSender").value.trim();
+            const subject = document.getElementById("scanSubject").value.trim();
+            const body_plain = document.getElementById("scanBody").value.trim();
+
+            try {
+                const res = await apiRequest("/api/v1/emails/scan", {
+                    method: "POST",
+                    body: JSON.stringify({ sender, recipient: "me@company.com", subject, body_plain })
+                });
+                const out = await res.json();
+                document.getElementById("scanSubject").value = "";
+                document.getElementById("scanBody").value = "";
+                await loadEmails();
+                await loadPreventionRules();
+                if (out.email_id) {
+                    reviewEmail(out.email_id);
+                } else {
+                    alert(`Scan Verdict: ${out.threat_verdict}\nStatus: ${out.status}`);
+                }
+            } catch(err) {
+                alert(err.message);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const token = getAuthToken();
+            if (!token) {
+                window.location.replace("../index.html");
+                return;
+            }
+            loadPreventionRules();
+            loadEmails();
+            syncGmail(true);
+            setInterval(() => {
+                syncGmail(true);
+            }, 15000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Mailguard Security Gateway</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="./css/main.css">
+    <script src="./js/config.js"></script>
+    <script src="./js/main.js"></script>
+    <script>
+        (function() {
+            // Check if already authenticated and redirect accordingly
+            const token = window.getAuthToken();
+            const role = window.getAuthRole();
+            if (token && !window.location.hash.includes("token")) {
+                if (role === "ADMIN") {
+                    window.location.replace("./portal/admin.html");
+                } else {
+                    window.location.replace("./portal/employee.html");
+                }
+            }
+        })();
+    </script>
+</head>
+<body class="d-flex align-items-center justify-content-center min-vh-100 position-relative p-3">
+    <!-- Top Bar Controls -->
+    <div class="position-absolute top-0 end-0 p-3 d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#backendConfigModal" title="Backend Server Settings">
+            <i class="bi bi-hdd-network"></i>
+            <span class="small d-none d-sm-inline" id="backendStatusLabel">Backend API</span>
+        </button>
+        <button type="button" onclick="toggleTheme()" class="theme-toggle-btn">
+            <i class="theme-toggle-icon bi bi-sun-fill"></i>
+            <span class="small d-none d-sm-inline">Theme</span>
+        </button>
+    </div>
+
+    <div class="container" style="max-width: 480px;">
+        <div class="text-center mb-4">
+            <i class="bi bi-shield-lock-fill text-info fs-1"></i>
+            <h2 class="brand-gradient mt-2 mb-1">MAILGUARD</h2>
+            <p class="text-muted small">Enterprise Email Security & Threat Isolation Gateway</p>
+        </div>
+
+        <div class="glass-panel p-4 shadow-lg">
+            <ul class="nav nav-tabs nav-fill mb-4" id="loginTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="employee-tab" type="button" onclick="switchTab('EMPLOYEE')">
+                        <i class="bi bi-person-fill me-1"></i> Employee Portal
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="admin-tab" type="button" onclick="switchTab('ADMIN')">
+                        <i class="bi bi-shield-shaded me-1"></i> Admin Portal
+                    </button>
+                </li>
+            </ul>
+
+            <div id="googleSection" class="mb-4">
+                <a id="googleAuthLink"
+                   href="#"
+                   onclick="handleGoogleSignIn(event)"
+                   class="btn btn-outline-light w-100 d-flex align-items-center justify-content-center gap-2 py-2 border-secondary border-opacity-50">
+                    <svg width="20" height="20" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                    </svg>
+                    <span>Sign in with Google (Employee)</span>
+                </a>
+            </div>
+
+            <div id="adminNotice" class="alert alert-info py-2 px-3 small border-0 bg-info bg-opacity-10 text-info mb-4 d-none d-flex align-items-center gap-2">
+                <i class="bi bi-shield-lock-fill fs-5"></i>
+                <span>Administrator accounts require authorized corporate credentials only.</span>
+            </div>
+
+            <div id="dividerSection" class="position-relative text-center my-4">
+                <hr class="border-secondary border-opacity-25 my-0">
+                <span class="position-absolute top-50 start-50 translate-middle px-3 bg-dark text-muted small" style="background-color: var(--card-bg) !important;">or corporate credentials</span>
+            </div>
+
+            <div id="error-alert" class="alert alert-danger py-2 small d-none" role="alert"></div>
+
+            <form id="loginForm" onsubmit="handleLocalLogin(event)">
+                <input type="hidden" id="selectedRole" value="EMPLOYEE">
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Corporate Email</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                        <input type="email" id="emailInput" class="form-control" placeholder="name@company.com" required>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label text-muted small">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-key"></i></span>
+                        <input type="password" id="passwordInput" class="form-control" placeholder="••••••••" required>
+                    </div>
+                </div>
+
+                <button type="submit" id="submitBtn" class="btn btn-info w-100 py-2 fw-semibold">
+                    <span id="submitBtnText">Sign In to Employee Portal</span>
+                    <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+            </form>
+        </div>
+
+        <div class="text-center mt-3 text-muted small">
+            <span>Mailguard Security Operations Gateway v1.0.0</span>
+        </div>
+    </div>
+
+    <!-- Backend Settings Modal -->
+    <div class="modal fade" id="backendConfigModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-sliders me-2 text-info"></i>Backend API Configuration</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-3">Configure the Render backend URL that this Netlify frontend communicates with.</p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Backend API URL</label>
+                        <input type="text" id="customBackendInput" class="form-control font-monospace" placeholder="https://mailguard-backend.onrender.com">
+                        <div class="form-text small text-muted">Leave empty to use local server (http://localhost:8000) or Netlify proxy rewrite.</div>
+                    </div>
+                    <div class="p-3 bg-dark bg-opacity-50 rounded border border-secondary border-opacity-25 small mb-2">
+                        <div class="fw-semibold text-light mb-1">Active Backend Endpoint:</div>
+                        <div id="activeBackendUrlDisplay" class="font-monospace text-info text-break"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetBackendUrl()">Reset to Default</button>
+                    <button type="button" class="btn btn-info px-4" onclick="saveBackendUrl()">Save & Reload</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let runtimeConfig = null;
+
+        async function initPage() {
+            // Update modal backend input display
+            const activeUrl = window.MAILGUARD_CONFIG.API_BASE_URL || (window.location.origin + " (Relative / Proxy)");
+            document.getElementById("activeBackendUrlDisplay").innerText = activeUrl;
+            document.getElementById("customBackendInput").value = window.MAILGUARD_CONFIG.API_BASE_URL || "";
+
+            // Attempt to fetch runtime OAuth configuration from backend
+            runtimeConfig = await window.MAILGUARD_CONFIG.fetchRuntimeConfig();
+            if (runtimeConfig) {
+                document.getElementById("backendStatusLabel").innerText = "Backend Connected";
+            }
+        }
+
+        function switchTab(role) {
+            const empTab = document.getElementById("employee-tab");
+            const adminTab = document.getElementById("admin-tab");
+            const googleSec = document.getElementById("googleSection");
+            const dividerSec = document.getElementById("dividerSection");
+            const adminNotice = document.getElementById("adminNotice");
+            const submitBtnText = document.getElementById("submitBtnText");
+            const selectedRole = document.getElementById("selectedRole");
+
+            if (role === "ADMIN") {
+                empTab.classList.remove("active");
+                adminTab.classList.add("active");
+                selectedRole.value = "ADMIN";
+                if (googleSec) googleSec.classList.add("d-none");
+                if (dividerSec) dividerSec.classList.add("d-none");
+                if (adminNotice) adminNotice.classList.remove("d-none");
+                if (submitBtnText) submitBtnText.innerText = "Sign In as Administrator";
+            } else {
+                adminTab.classList.remove("active");
+                empTab.classList.add("active");
+                selectedRole.value = "EMPLOYEE";
+                if (googleSec) googleSec.classList.remove("d-none");
+                if (dividerSec) dividerSec.classList.remove("d-none");
+                if (adminNotice) adminNotice.classList.add("d-none");
+                if (submitBtnText) submitBtnText.innerText = "Sign In to Employee Portal";
+            }
+        }
+
+        function handleGoogleSignIn(e) {
+            e.preventDefault();
+            const clientId = (runtimeConfig && runtimeConfig.google_client_id) || window.MAILGUARD_CONFIG.GOOGLE_CLIENT_ID;
+            const redirectUri = (runtimeConfig && runtimeConfig.google_redirect_uri) || 
+                                window.MAILGUARD_CONFIG.GOOGLE_REDIRECT_URI || 
+                                window.MAILGUARD_CONFIG.apiUrl("/api/v1/auth/google/callback");
+
+            if (!clientId) {
+                alert("Google Client ID is not configured on the backend yet. Please set GOOGLE_CLIENT_ID in the backend environment variables or sign in with your corporate email/password.");
+                return;
+            }
+
+            const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid%20email%20profile%20https://mail.google.com/&access_type=offline&prompt=consent&state=EMPLOYEE`;
+            window.location.href = oauthUrl;
+        }
+
+        async function handleLocalLogin(e) {
+            e.preventDefault();
+            const errorAlert = document.getElementById("error-alert");
+            const submitBtn = document.getElementById("submitBtn");
+            errorAlert.classList.add("d-none");
+            submitBtn.disabled = true;
+
+            const email = document.getElementById("emailInput").value.trim();
+            const password = document.getElementById("passwordInput").value;
+
+            try {
+                const loginEndpoint = window.MAILGUARD_CONFIG.apiUrl("/api/v1/auth/login");
+                const res = await fetch(loginEndpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || "Authentication failed");
+                }
+
+                window.setAuthSession(data.access_token, data.role, data.user);
+
+                if (data.role === "ADMIN") {
+                    window.location.href = "./portal/admin.html";
+                } else {
+                    window.location.href = "./portal/employee.html";
+                }
+            } catch (err) {
+                errorAlert.innerText = err.message;
+                errorAlert.classList.remove("d-none");
+                submitBtn.disabled = false;
+            }
+        }
+
+        function saveBackendUrl() {
+            const inputVal = document.getElementById("customBackendInput").value.trim();
+            window.MAILGUARD_CONFIG.setApiBaseUrl(inputVal);
+            window.location.reload();
+        }
+
+        function resetBackendUrl() {
+            window.MAILGUARD_CONFIG.setApiBaseUrl("");
+            window.location.reload();
+        }
+
+        document.addEventListener("DOMContentLoaded", initPage);
+    </script>
+</body>
+</html>

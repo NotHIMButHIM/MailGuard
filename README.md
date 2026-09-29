@@ -180,18 +180,76 @@ Render hosts the persistent FastAPI service, background Gmail threat neutralizer
 6. Click **Deploy Web Service**.
    *On first launch, Mailguard automatically runs database migrations and seeds the default administrator.*
 
-### Option B: Deploy on Vercel
-Mailguard includes a pre-configured `vercel.json`:
+## 🚀 Separate Frontend & Backend Deployment
 
-1. Install the Vercel CLI or import your GitHub repository into the [Vercel Dashboard](https://vercel.com/new).
-2. Deploy directly:
-   ```bash
-   vercel
-   ```
-3. Set your environment variables (`SECRET_KEY`, etc.) in the Vercel project settings.
-4. Your web application is instantly live on `https://your-project.vercel.app`!
+Mailguard is fully decoupled into independent **Backend** (for **Render**) and **Frontend** (for **Netlify**) directories:
+
+```
+Mailguard/
+├── backend/                  # Standalone FastAPI Backend (Deploy to Render)
+│   ├── main.py               # Application entrypoint & CORS middleware
+│   ├── mailguard_app/        # Core models, services, ML registry, routers
+│   ├── ml_models/            # Pre-trained spam & phishing pickle models
+│   ├── scripts/              # Seed admin & maintenance utilities
+│   ├── requirements.txt      # Python dependencies
+│   ├── render.yaml           # Render Web Service Blueprint spec
+│   ├── Dockerfile            # Container deployment spec
+│   └── README.md             # Render deployment walkthrough
+│
+├── frontend/                 # Standalone Client Portal (Deploy to Netlify)
+│   ├── index.html            # Unified Employee & Admin Login
+│   ├── portal/
+│   │   ├── employee.html     # Employee Prevention & Inspected Inbox Portal
+│   │   └── admin.html        # SOC Security Operations Center Portal
+│   ├── css/main.css          # Glassmorphism cyber-security design system
+│   ├── js/config.js          # Central configuration & dynamic API routing
+│   ├── js/main.js            # Auth session, OAuth token capture & API client
+│   ├── netlify.toml          # Netlify build spec & security headers
+│   ├── _redirects            # Netlify routing and clean URLs
+│   └── README.md             # Netlify deployment walkthrough
+```
 
 ---
+
+### Step 1: Deploy Backend to Render
+
+1. Go to [Render Dashboard](https://dashboard.render.com/) -> **New +** -> **Web Service** (or use **Blueprint** with `render.yaml`).
+2. Select your repository.
+3. Configure the settings:
+   - **Root Directory**: `backend` (if deploying from monorepo)
+   - **Runtime**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port 10000`
+   - **Health Check Path**: `/health`
+4. Set Environment Variables:
+   - `SECRET_KEY`: *(Generate a secure key)*
+   - `CORS_ORIGINS`: `["*"]`
+   - `FRONTEND_URL`: `https://your-site.netlify.app` *(Your Netlify URL)*
+   - `ADMIN_EMAIL`: `admin@mailguard.enterprise`
+   - `ADMIN_PASSWORD`: `AdminPass@2026!`
+5. Click **Create Web Service**. Your backend will be live at `https://your-backend.onrender.com`.
+
+---
+
+### Step 2: Deploy Frontend to Netlify
+
+#### Option A: Drag & Drop (10 Seconds)
+1. Go to [Netlify Dashboard](https://app.netlify.com/) -> **Sites** -> **Add new site** -> **Deploy manually**.
+2. Drag and drop the `frontend` folder.
+3. Your site is instantly live!
+
+#### Option B: Connect Git Repository
+1. In Netlify, click **Import from Git** and choose this repository.
+2. Set **Base directory**: `frontend` and **Publish directory**: `.` (or `frontend`).
+3. Click **Deploy Site**.
+
+#### Option C: Point Frontend to Render Backend
+In `frontend/js/config.js`, set your Render backend URL:
+```javascript
+let defaultApiBase = isLocalhost ? "http://localhost:8000" : "https://your-backend.onrender.com";
+```
+*(Or simply click the **Backend API** button on the top right of the login screen in your browser and enter the Render URL).*
+
 
 ## 🔑 Default Credentials
 

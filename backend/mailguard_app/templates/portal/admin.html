@@ -1,0 +1,883 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Security Operations Portal - Mailguard{% endblock %}
+
+{% block nav_items %}
+<a href="/portal/admin" class="nav-link text-info fw-semibold active">
+    <i class="bi bi-shield-shaded me-1"></i> Security Operations
+</a>
+<a href="/portal/employee" class="nav-link text-muted">
+    <i class="bi bi-person me-1"></i> Employee View
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+    <div class="col-md-2">
+        <div class="stat-card">
+            <span class="text-muted small">Total Scanned</span>
+            <div id="statTotal" class="stat-value text-info">0</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <span class="text-muted small">Clean Messages</span>
+            <div id="statClean" class="stat-value text-success">0</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <span class="text-muted small">Spam Detected</span>
+            <div id="statSpam" class="stat-value text-warning">0</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <span class="text-muted small">Phishing Threats</span>
+            <div id="statPhish" class="stat-value text-danger">0</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <span class="text-muted small">Quarantined / Isolated</span>
+            <div id="statQuar" class="stat-value" style="color: #c084fc;">0</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <span class="text-muted small">Active Employees</span>
+            <div id="statEmployees" class="stat-value text-light">0</div>
+        </div>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-4 border-secondary border-opacity-25" id="adminTabs" role="tablist">
+    <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-sessions" type="button">
+            <i class="bi bi-people-fill me-1"></i> Active Employee Sessions
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-quarantine" type="button">
+            <i class="bi bi-radioactive me-1"></i> Quarantine & Isolation Manager
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-tickets" type="button" onclick="loadTickets()">
+            <i class="bi bi-ticket-perforated-fill text-warning me-1"></i> Release Requests
+            <span id="ticketPendingBadge" class="badge bg-warning text-dark ms-1 d-none">0</span>
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ml" type="button">
+            <i class="bi bi-cpu-fill me-1"></i> ML Models & Tuning
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dlp" type="button">
+            <i class="bi bi-file-earmark-lock2 me-1"></i> DLP Incidents
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-audit" type="button">
+            <i class="bi bi-journal-text me-1"></i> Audit Trail
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="tab-sessions">
+        <div class="glass-panel p-4 mb-4">
+            <h5 class="text-light mb-3"><i class="bi bi-broadcast text-success me-2"></i>Logged-In Employees & Active Sessions</h5>
+            <div class="table-responsive">
+                <table class="table table-dark-custom align-middle">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Employee Name</th>
+                            <th>Email</th>
+                            <th>Session Token</th>
+                            <th>IP Address</th>
+                            <th>User Agent</th>
+                            <th>Last Activity</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activeSessionsTable">
+                        <tr><td colspan="8" class="text-center text-muted py-3">Loading sessions...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="glass-panel p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h5 class="text-light mb-0"><i class="bi bi-folder2-open text-info me-2"></i>Registered Corporate Employees</h5>
+                <button class="btn btn-info btn-sm fw-semibold d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#addEmployeeModal">
+                    <i class="bi bi-person-plus-fill"></i>
+                    <span>Add Employee</span>
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark-custom align-middle">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Email</th>
+                            <th>Organization</th>
+                            <th>Total Emails</th>
+                            <th>Quarantined</th>
+                            <th>Active Prevention Rules</th>
+                            <th>Last Login</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employeesDataTable">
+                        <tr><td colspan="8" class="text-center text-muted py-3">Loading employee data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="modal fade" id="addEmployeeModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content glass-panel border border-secondary border-opacity-50">
+                    <div class="modal-header border-bottom border-secondary border-opacity-25">
+                        <h5 class="modal-title brand-gradient d-flex align-items-center gap-2">
+                            <i class="bi bi-person-plus-fill text-info"></i> Provision Corporate Employee
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form onsubmit="handleCreateEmployee(event)">
+                        <div class="modal-body p-4">
+                            <div id="createEmpError" class="alert alert-danger py-2 small d-none"></div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small">Full Name</label>
+                                <input type="text" id="newEmpName" class="form-control" placeholder="Jane Doe" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small">Corporate Email Address</label>
+                                <input type="email" id="newEmpEmail" class="form-control" placeholder="jane.doe@company.com" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small">Initial Password</label>
+                                <input type="password" id="newEmpPass" class="form-control" placeholder="••••••••" value="EmployeePass@2026!" required>
+                                <span class="text-muted small">Employee can login with this password or with their corporate Google account.</span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small">Department / Organization</label>
+                                <input type="text" id="newEmpOrg" class="form-control" placeholder="Corporate" value="Default Organization">
+                            </div>
+                        </div>
+                        <div class="modal-footer border-top border-secondary border-opacity-25">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" id="createEmpSubmitBtn" class="btn btn-info fw-semibold">
+                                <i class="bi bi-check2-circle me-1"></i> Add Employee
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-quarantine">
+        <div class="glass-panel p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h5 class="text-light mb-0"><i class="bi bi-shield-x text-warning me-2"></i>Quarantined & Isolated Threats</h5>
+                <button onclick="loadQuarantine()" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark-custom align-middle">
+                    <thead>
+                        <tr>
+                            <th>Isolation Level</th>
+                            <th>Trigger Reason</th>
+                            <th>Sender</th>
+                            <th>Subject</th>
+                            <th>Status</th>
+                            <th>Quarantined At</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quarantineTable">
+                        <tr><td colspan="7" class="text-center text-muted py-3">Loading quarantine records...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-tickets">
+        <div class="glass-panel p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="text-light mb-0"><i class="bi bi-ticket-perforated-fill text-warning me-2"></i>Employee Release Request Tickets</h5>
+                    <span class="badge bg-secondary bg-opacity-25 text-light" id="totalTicketsCount">0 Tickets</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <select id="ticketStatusFilter" class="form-select form-select-sm bg-dark text-light border-secondary border-opacity-25" onchange="loadTickets()">
+                        <option value="">All Statuses</option>
+                        <option value="PENDING" selected>Pending Review</option>
+                        <option value="APPROVED">Approved</option>
+                        <option value="DENIED">Denied</option>
+                    </select>
+                    <button onclick="loadTickets()" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark-custom align-middle">
+                    <thead>
+                        <tr>
+                            <th>Ticket</th>
+                            <th>Employee</th>
+                            <th>Target Email</th>
+                            <th>Spam Level & Risk</th>
+                            <th>Threat Verdict</th>
+                            <th>Employee Justification</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                            <th>Admin Verification</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ticketsTable">
+                        <tr><td colspan="9" class="text-center text-muted py-3">Loading release tickets...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-ml">
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="glass-panel p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h5 class="text-light mb-0"><i class="bi bi-robot text-info me-2"></i>Machine Learning Model Registry</h5>
+                        <button onclick="retrainModels()" id="retrainBtn" class="btn btn-info btn-sm">
+                            <i class="bi bi-arrow-repeat me-1"></i> Retrain All Models
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-dark-custom align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Model Name</th>
+                                    <th>Version</th>
+                                    <th>Accuracy</th>
+                                    <th>F1 Score</th>
+                                    <th>Precision</th>
+                                    <th>Recall</th>
+                                    <th>Samples</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mlModelsTable">
+                                <tr><td colspan="7" class="text-center text-muted py-3">Loading live model metrics...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="glass-panel p-4">
+                    <h5 class="text-light mb-3"><i class="bi bi-lightning-charge text-warning me-2"></i>Live Model Threat Tester</h5>
+                    <form id="mlTestForm" onsubmit="testMLPrediction(event)">
+                        <div class="mb-3">
+                            <input type="text" id="mlTestSubject" class="form-control bg-dark text-light border-secondary border-opacity-25" placeholder="Subject..." required>
+                        </div>
+                        <div class="mb-3">
+                            <textarea id="mlTestBody" class="form-control bg-dark text-light border-secondary border-opacity-25" rows="3" placeholder="Message content..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-outline-info w-100 py-2">
+                            <i class="bi bi-cpu me-1"></i> Predict Threat Scores
+                        </button>
+                    </form>
+                    <div id="mlPredictionResult" class="mt-3 p-3 bg-dark rounded border border-secondary border-opacity-25 d-none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-dlp">
+        <div class="glass-panel p-4">
+            <h5 class="text-light mb-3"><i class="bi bi-shield-slash text-danger me-2"></i>Sensitive Data Loss Incidents</h5>
+            <div class="table-responsive">
+                <table class="table table-dark-custom align-middle">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Pattern Type</th>
+                            <th>Matches</th>
+                            <th>Masked Sample</th>
+                            <th>Detected At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dlpTable">
+                        <tr><td colspan="5" class="text-center text-muted py-3">Loading DLP logs...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-audit">
+        <div class="glass-panel p-4">
+            <h5 class="text-light mb-3"><i class="bi bi-clipboard2-check text-info me-2"></i>Security Audit Trail</h5>
+            <div class="table-responsive">
+                <table class="table table-dark-custom align-middle">
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Entity</th>
+                            <th>IP Address</th>
+                            <th>User Agent</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditTable">
+                        <tr><td colspan="5" class="text-center text-muted py-3">Loading audit records...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Verification & Decision Modal -->
+<div class="modal fade" id="adminDecisionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="decisionModalTitle">Verify & Review Release Ticket</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="adminDecisionForm" onsubmit="submitAdminDecision(event)">
+                <div class="modal-body p-4">
+                    <input type="hidden" id="decisionTicketId">
+                    <input type="hidden" id="decisionAction">
+                    <div class="p-3 bg-dark rounded border border-secondary border-opacity-25 mb-3 small">
+                        <div class="mb-1"><span class="text-muted">Ticket:</span> <strong id="decisionTicketLabel"></strong></div>
+                        <div class="mb-1"><span class="text-muted">Employee:</span> <span id="decisionUser"></span></div>
+                        <div class="mb-1"><span class="text-muted">Email Subject:</span> <span id="decisionSubject" class="text-light fw-semibold"></span></div>
+                        <div class="d-flex align-items-center gap-3 mt-2">
+                            <div><span class="text-muted">Spam Level:</span> <span id="decisionSpamLevelBadge"></span></div>
+                            <div><span class="text-muted">Spam Score:</span> <strong id="decisionSpamScore" class="text-warning"></strong></div>
+                            <div><span class="text-muted">Verdict:</span> <strong id="decisionVerdict" class="text-danger"></strong></div>
+                        </div>
+                        <div class="mt-2 pt-2 border-top border-secondary border-opacity-25">
+                            <span class="text-muted">Employee Justification:</span>
+                            <div id="decisionJustification" class="text-info mt-1 fst-italic"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-semibold">Admin Verification Notes / Reason</label>
+                        <textarea id="decisionAdminNotes" class="form-control bg-dark text-light border-secondary border-opacity-25" rows="3" placeholder="Add administrative verification comments (e.g. 'Verified vendor quotation as legitimate', 'Denied due to high spam and phishing model confidence')..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="btnConfirmDecision" class="btn btn-primary px-4">Confirm Decision</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allTickets = [];
+
+function getSpamLevelBadge(level, score) {
+    const sPct = formatScore(score);
+    if (level === "CRITICAL") return `<span class="badge bg-danger text-white border border-danger">CRITICAL (${sPct})</span>`;
+    if (level === "HIGH") return `<span class="badge bg-warning text-dark border border-warning">HIGH (${sPct})</span>`;
+    if (level === "MEDIUM") return `<span class="badge bg-info text-dark border border-info">MEDIUM (${sPct})</span>`;
+    return `<span class="badge bg-success text-white border border-success">LOW (${sPct})</span>`;
+}
+
+async function loadTickets() {
+    try {
+        const filter = document.getElementById("ticketStatusFilter")?.value || "";
+        const url = filter ? `/api/v1/quarantine/requests?status_filter=${filter}` : `/api/v1/quarantine/requests`;
+        const res = await apiRequest(url);
+        const tickets = await res.json();
+        allTickets = tickets;
+
+        const pendingCount = tickets.filter(t => t.status === "PENDING").length;
+        const pBadge = document.getElementById("ticketPendingBadge");
+        if (pBadge) {
+            pBadge.innerText = pendingCount;
+            pBadge.classList.toggle("d-none", pendingCount === 0);
+        }
+        const countLabel = document.getElementById("totalTicketsCount");
+        if (countLabel) countLabel.innerText = `${tickets.length} Tickets`;
+
+        const tbody = document.getElementById("ticketsTable");
+        if (!tbody) return;
+
+        if (tickets.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No release request tickets matching the selected filter.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = tickets.map(t => {
+            const em = t.email || {};
+            const levelBadge = getSpamLevelBadge(t.spam_level, t.spam_score);
+            let statusBadge = `<span class="badge bg-warning text-dark">PENDING</span>`;
+            if (t.status === "APPROVED") statusBadge = `<span class="badge bg-success">APPROVED</span>`;
+            else if (t.status === "DENIED") statusBadge = `<span class="badge bg-danger">DENIED</span>`;
+
+            let actionHtml = '';
+            if (t.status === "PENDING") {
+                actionHtml = `
+                    <div class="d-flex gap-1">
+                        <button onclick="openDecisionModal(${t.id}, 'APPROVE')" class="btn btn-outline-success btn-sm py-1 px-2 d-flex align-items-center gap-1" title="Approve release and deliver to inbox">
+                            <i class="bi bi-check-lg"></i> Approve
+                        </button>
+                        <button onclick="openDecisionModal(${t.id}, 'DENY')" class="btn btn-outline-danger btn-sm py-1 px-2 d-flex align-items-center gap-1" title="Deny release request based on spam level">
+                            <i class="bi bi-x-lg"></i> Deny
+                        </button>
+                    </div>`;
+            } else {
+                actionHtml = `
+                    <div class="small text-muted text-truncate" style="max-width: 150px;" title="${t.admin_notes || 'No notes'}">
+                        ${t.admin_notes || 'Reviewed'}
+                    </div>`;
+            }
+
+            return `
+                <tr>
+                    <td><strong>#${t.id}</strong></td>
+                    <td>
+                        <div class="fw-semibold text-light">${t.user_name || 'Employee'}</div>
+                        <div class="small text-muted">${t.user_email || ''}</div>
+                    </td>
+                    <td>
+                        <div class="fw-semibold text-truncate text-light" style="max-width: 180px;" title="${em.subject || ''}">${em.subject || 'No Subject'}</div>
+                        <div class="small text-muted text-truncate" style="max-width: 180px;">From: ${em.sender || ''}</div>
+                    </td>
+                    <td>${levelBadge}</td>
+                    <td><span class="badge bg-dark border border-secondary">${em.threat_verdict || 'SPAM'}</span></td>
+                    <td>
+                        <div class="small text-info text-truncate" style="max-width: 180px;" title="${t.justification}">
+                            "${t.justification}"
+                        </div>
+                    </td>
+                    <td>${statusBadge}</td>
+                    <td class="text-muted small">${new Date(t.created_at).toLocaleDateString()}</td>
+                    <td>${actionHtml}</td>
+                </tr>`;
+        }).join("");
+    } catch(err) {
+        console.error("Failed to load release tickets:", err);
+    }
+}
+
+function openDecisionModal(ticketId, action) {
+    const t = allTickets.find(item => item.id === ticketId);
+    if (!t) return;
+
+    document.getElementById("decisionTicketId").value = ticketId;
+    document.getElementById("decisionAction").value = action;
+    document.getElementById("decisionTicketLabel").innerText = `#${t.id} (Status: ${t.status})`;
+    document.getElementById("decisionUser").innerText = `${t.user_name} (${t.user_email})`;
+    document.getElementById("decisionSubject").innerText = t.email?.subject || "No Subject";
+    document.getElementById("decisionSpamLevelBadge").innerHTML = getSpamLevelBadge(t.spam_level, t.spam_score);
+    document.getElementById("decisionSpamScore").innerText = formatScore(t.spam_score);
+    document.getElementById("decisionVerdict").innerText = t.email?.threat_verdict || "SPAM";
+    document.getElementById("decisionJustification").innerText = `"${t.justification}"`;
+    document.getElementById("decisionAdminNotes").value = "";
+
+    const btnConfirm = document.getElementById("btnConfirmDecision");
+    const modalTitle = document.getElementById("decisionModalTitle");
+
+    if (action === "APPROVE") {
+        modalTitle.innerText = "Approve Email Release";
+        btnConfirm.className = "btn btn-success px-4";
+        btnConfirm.innerHTML = '<i class="bi bi-check-circle me-1"></i> Approve & Deliver';
+    } else {
+        modalTitle.innerText = "Deny Release Request";
+        btnConfirm.className = "btn btn-danger px-4";
+        btnConfirm.innerHTML = '<i class="bi bi-shield-x me-1"></i> Confirm Denial';
+    }
+
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("adminDecisionModal"));
+    modal.show();
+}
+
+async function submitAdminDecision(e) {
+    e.preventDefault();
+    const ticketId = parseInt(document.getElementById("decisionTicketId").value);
+    const action = document.getElementById("decisionAction").value;
+    const admin_notes = document.getElementById("decisionAdminNotes").value.trim();
+    const btn = document.getElementById("btnConfirmDecision");
+    btn.disabled = true;
+
+    try {
+        const res = await apiRequest(`/api/v1/quarantine/requests/${ticketId}/decide`, {
+            method: "POST",
+            body: JSON.stringify({ action, admin_notes })
+        });
+        const out = await res.json();
+        const modal = bootstrap.Modal.getInstance(document.getElementById("adminDecisionModal"));
+        if (modal) modal.hide();
+        alert(`Ticket #${ticketId} was ${out.status}.`);
+        loadTickets();
+        loadQuarantine();
+        loadDashboardStats();
+    } catch(err) {
+        alert("Failed to submit decision: " + err.message);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function formatScore(score) {
+    if (score === null || score === undefined) return "0%";
+    let s = parseFloat(score);
+    if (isNaN(s)) return "0%";
+    if (s > 0 && s <= 1.0) s = s * 100;
+    return Math.round(s) + "%";
+}
+
+async function loadDashboardStats() {
+    try {
+        const res = await apiRequest("/api/v1/dashboard/stats");
+        const data = await res.json();
+        document.getElementById("statTotal").innerText = data.total_scanned;
+        document.getElementById("statClean").innerText = data.clean_emails;
+        document.getElementById("statSpam").innerText = data.spam_detected;
+        document.getElementById("statPhish").innerText = data.phishing_detected;
+        document.getElementById("statQuar").innerText = data.quarantined_count;
+        document.getElementById("statEmployees").innerText = data.active_employees_logged_in;
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+async function loadActiveSessions() {
+    try {
+        const res = await apiRequest("/api/v1/admin/active-sessions");
+        const sessions = await res.json();
+        const tbody = document.getElementById("activeSessionsTable");
+        if (sessions.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No active employee sessions currently online.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = sessions.map(s => `
+            <tr>
+                <td>#${s.user_id}</td>
+                <td class="fw-semibold text-light">${s.user ? s.user.full_name : 'Employee'}</td>
+                <td class="text-info">${s.user ? s.user.email : 'Unknown'}</td>
+                <td><code>${s.session_token.substring(0, 12)}...</code></td>
+                <td>${s.ip_address || '127.0.0.1'}</td>
+                <td class="text-truncate text-muted small" style="max-width: 180px;">${s.user_agent || 'Unknown'}</td>
+                <td class="text-muted small">${new Date(s.last_activity).toLocaleTimeString()}</td>
+                <td>
+                    <button onclick="revokeSession(${s.id})" class="btn btn-outline-danger btn-sm py-0 px-2">
+                        Revoke
+                    </button>
+                </td>
+            </tr>
+        `).join("");
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+async function loadEmployeesData() {
+    try {
+        const res = await apiRequest("/api/v1/admin/employees");
+        const emps = await res.json();
+        const tbody = document.getElementById("employeesDataTable");
+        if (emps.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No registered employees in system. Click Add Employee to provision one.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = emps.map(e => `
+            <tr>
+                <td class="fw-semibold text-light">${e.full_name}</td>
+                <td>${e.email}</td>
+                <td><span class="badge bg-dark border border-secondary">${e.organization_name}</span></td>
+                <td><span class="badge bg-secondary">${e.total_emails}</span></td>
+                <td><span class="badge badge-quarantined">${e.quarantined_emails}</span></td>
+                <td><span class="badge bg-dark border border-info text-info">${e.active_prevention_rules}</span></td>
+                <td class="text-muted small">${e.last_login_at ? new Date(e.last_login_at).toLocaleString() : 'Never'}</td>
+                <td>
+                    <button onclick="deleteEmployee(${e.user_id})" class="btn btn-outline-danger btn-sm py-0 px-2" title="Remove Employee">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join("");
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+async function handleCreateEmployee(e) {
+    e.preventDefault();
+    const errBox = document.getElementById("createEmpError");
+    const submitBtn = document.getElementById("createEmpSubmitBtn");
+    errBox.classList.add("d-none");
+    submitBtn.disabled = true;
+
+    const full_name = document.getElementById("newEmpName").value.trim();
+    const email = document.getElementById("newEmpEmail").value.trim();
+    const password = document.getElementById("newEmpPass").value;
+    const organization_name = document.getElementById("newEmpOrg").value.trim();
+
+    try {
+        const res = await apiRequest("/api/v1/admin/employees", {
+            method: "POST",
+            body: JSON.stringify({ full_name, email, password, organization_name })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.detail || "Failed to create employee");
+        }
+        const modalEl = document.getElementById("addEmployeeModal");
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+        document.getElementById("newEmpName").value = "";
+        document.getElementById("newEmpEmail").value = "";
+        loadEmployeesData();
+        loadDashboardStats();
+    } catch(err) {
+        errBox.innerText = err.message;
+        errBox.classList.remove("d-none");
+    } finally {
+        submitBtn.disabled = false;
+    }
+}
+
+async function deleteEmployee(empId) {
+    if (!confirm("Are you sure you want to remove this employee from the database?")) return;
+    try {
+        await apiRequest(`/api/v1/admin/employees/${empId}`, { method: "DELETE" });
+        loadEmployeesData();
+        loadDashboardStats();
+    } catch(err) {
+        alert(err.message);
+    }
+}
+
+async function revokeSession(sessionId) {
+    if (!confirm("Revoke this active employee session immediately?")) return;
+    try {
+        await apiRequest(`/api/v1/admin/sessions/${sessionId}`, { method: "DELETE" });
+        loadActiveSessions();
+        loadDashboardStats();
+    } catch(err) {
+        alert(err.message);
+    }
+}
+
+async function loadQuarantine() {
+    try {
+        const res = await apiRequest("/api/v1/quarantine");
+        const list = await res.json();
+        const tbody = document.getElementById("quarantineTable");
+        if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No emails currently in quarantine.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = list.map(q => `
+            <tr>
+                <td><span class="badge badge-isolated">${q.isolation_level}</span></td>
+                <td class="text-danger small fw-semibold">${q.reason}</td>
+                <td class="text-truncate" style="max-width: 140px;">${q.email ? q.email.sender : 'Unknown'}</td>
+                <td class="text-truncate" style="max-width: 200px;">${q.email ? q.email.subject : 'No Subject'}</td>
+                <td>
+                    <span class="badge ${q.is_released ? 'bg-success' : 'badge-quarantined'}">
+                        ${q.is_released ? 'RELEASED' : 'QUARANTINED'}
+                    </span>
+                </td>
+                <td class="text-muted small">${new Date(q.created_at).toLocaleString()}</td>
+                <td>
+                    ${!q.is_released ? `
+                        <button onclick="releaseQuarantined(${q.id})" class="btn btn-outline-success btn-sm py-0 px-2">
+                            Release
+                        </button>
+                    ` : '<span class="text-muted small">Done</span>'}
+                </td>
+            </tr>
+        `).join("");
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+async function releaseQuarantined(id) {
+    if (!confirm("Release this email from quarantine to the recipient?")) return;
+    try {
+        await apiRequest(`/api/v1/quarantine/${id}/release`, {
+            method: "POST",
+            body: JSON.stringify({ comments: "Admin manual verification passed" })
+        });
+        loadQuarantine();
+        loadDashboardStats();
+    } catch(err) {
+        alert(err.message);
+    }
+}
+
+async function loadMLMetrics() {
+    const tbody = document.getElementById("mlModelsTable");
+    try {
+        const res = await apiRequest("/api/v1/ml-models/live-metrics");
+        const models = await res.json();
+        if (!models || models.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No model data available.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = models.map(m => {
+            const accClass = m.accuracy >= 90 ? 'text-success' : m.accuracy >= 75 ? 'text-warning' : 'text-danger';
+            const f1Class = m.f1_score >= 0.9 ? 'text-success' : m.f1_score >= 0.75 ? 'text-warning' : 'text-danger';
+            return `
+                <tr>
+                    <td class="fw-semibold">${m.model_name}</td>
+                    <td><span class="badge bg-dark border border-secondary">${m.version}</span></td>
+                    <td class="${accClass} fw-bold">${m.accuracy}%</td>
+                    <td class="${f1Class} fw-bold">${m.f1_score}</td>
+                    <td class="fw-bold">${m.precision}%</td>
+                    <td class="fw-bold">${m.recall}%</td>
+                    <td>${m.sample_count.toLocaleString()}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch(err) {
+        console.error('Failed to load ML metrics:', err);
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-3">Failed to load metrics.</td></tr>';
+    }
+}
+
+async function retrainModels() {
+    const btn = document.getElementById("retrainBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Training...';
+    try {
+        const res = await apiRequest("/api/v1/ml-models/retrain", {
+            method: "POST",
+            body: JSON.stringify({ model_type: "ALL" })
+        });
+        const out = await res.json();
+        alert("ML models successfully retrained and deployed in memory.");
+        loadMLMetrics();
+    } catch(err) {
+        alert(err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Retrain All Models';
+    }
+}
+
+async function testMLPrediction(e) {
+    e.preventDefault();
+    const subject = document.getElementById("mlTestSubject").value.trim();
+    const body = document.getElementById("mlTestBody").value.trim();
+
+    try {
+        const res = await apiRequest("/api/v1/ml-models/predict", {
+            method: "POST",
+            body: JSON.stringify({ subject, body })
+        });
+        const data = await res.json();
+        const box = document.getElementById("mlPredictionResult");
+        box.classList.remove("d-none");
+        box.innerHTML = `
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="fw-bold">Verdict: <span class="badge ${data.verdict === 'CLEAN' ? 'bg-success' : 'bg-danger'}">${data.verdict}</span></span>
+                <span class="text-muted small">Heuristic Boost: ${data.heuristics.heuristic_boost}</span>
+            </div>
+            <div class="small">
+                <div>Spam Probability: <strong>${formatScore(data.spam_score)}</strong></div>
+                <div>Phishing Probability: <strong>${formatScore(data.phishing_score)}</strong></div>
+            </div>
+        `;
+    } catch(err) {
+        alert(err.message);
+    }
+}
+
+async function loadDLP() {
+    try {
+        const res = await apiRequest("/api/v1/dlp/incidents");
+        const dlps = await res.json();
+        const tbody = document.getElementById("dlpTable");
+        if (dlps.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No sensitive DLP incidents recorded.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = dlps.map(d => `
+            <tr>
+                <td><span class="badge bg-danger">${d.severity}</span></td>
+                <td class="fw-semibold text-warning">${d.pattern_type}</td>
+                <td>${d.matches_count}</td>
+                <td><code>${d.masked_sample}</code></td>
+                <td class="text-muted small">${new Date(d.created_at).toLocaleString()}</td>
+            </tr>
+        `).join("");
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+async function loadAudit() {
+    try {
+        const res = await apiRequest("/api/v1/audit/logs");
+        const logs = await res.json();
+        const tbody = document.getElementById("auditTable");
+        if (logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No audit records found.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = logs.map(l => `
+            <tr>
+                <td><span class="badge bg-dark border border-info text-info">${l.action}</span></td>
+                <td>${l.entity_type}</td>
+                <td>${l.ip_address || '127.0.0.1'}</td>
+                <td class="text-truncate text-muted small" style="max-width: 220px;">${l.user_agent || 'System'}</td>
+                <td class="text-muted small">${new Date(l.created_at).toLocaleString()}</td>
+            </tr>
+        `).join("");
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const token = getAuthToken();
+    const role = getAuthRole();
+    if (!token) {
+        window.location.replace("/login");
+        return;
+    }
+    if (role !== "ADMIN") {
+        window.location.replace("/portal/employee");
+        return;
+    }
+    loadDashboardStats();
+    loadActiveSessions();
+    loadEmployeesData();
+    loadQuarantine();
+    loadTickets();
+    loadMLMetrics();
+    loadDLP();
+    loadAudit();
+
+    // Auto-refresh dashboard data every 15 seconds
+    setInterval(() => {
+        loadDashboardStats();
+        loadActiveSessions();
+        loadEmployeesData();
+        loadQuarantine();
+        loadTickets();
+        loadDLP();
+        loadAudit();
+    }, 15000);
+});
+</script>
+{% endblock %}

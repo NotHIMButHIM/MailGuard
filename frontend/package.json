@@ -1,0 +1,17 @@
+{
+  "name": "mailguard-frontend",
+  "version": "1.0.0",
+  "description": "Mailguard Security Gateway - Unified Threat Prevention & Operations Frontend",
+  "scripts": {
+    "dev": "npx serve . -l 3000",
+    "start": "npx serve . -l 3000"
+  },
+  "keywords": [
+    "security",
+    "email-security",
+    "spam-prevention",
+    "soc-portal"
+  ],
+  "author": "Mailguard Security",
+  "license": "MIT"
+}
