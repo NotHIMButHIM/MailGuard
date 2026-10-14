@@ -34,6 +34,16 @@ class MailScannerService:
         client_ip: str = "127.0.0.1",
         db: Optional[AsyncSession] = None
     ) -> Dict[str, Any]:
+        # Ensure body_plain is populated from body_html if plain text was omitted or empty
+        if (not body_plain or not body_plain.strip()) and body_html:
+            import re
+            import html
+            clean = re.sub(r'<script.*?</script>', '', body_html, flags=re.DOTALL | re.IGNORECASE)
+            clean = re.sub(r'<style.*?</style>', '', clean, flags=re.DOTALL | re.IGNORECASE)
+            clean = re.sub(r'<(?:br|p|div|tr)[^>]*>', '\n', clean, flags=re.IGNORECASE)
+            clean = re.sub(r'<[^>]+>', ' ', clean)
+            body_plain = html.unescape(clean).strip()
+
         prevention_hit = None
         if db:
             prevention_hit = await policy_engine.evaluate_employee_prevention(
@@ -65,7 +75,7 @@ class MailScannerService:
             )
 
         auth_verdict = auth_checker.evaluate_all(sender=sender, client_ip=client_ip, raw_headers=raw_headers)
-        ml_verdict = predictor.predict_all(subject=subject, body=body_plain)
+        ml_verdict = predictor.predict_all(subject=subject, body=body_plain, body_html=body_html)
         nlp_verdict = nlp_engine.analyze(subject=subject, body=body_plain)
         dlp_incidents = dlp_inspector.inspect_text(f"{subject}\n{body_plain}")
 
@@ -190,7 +200,9 @@ class MailScannerService:
                 sandbox_details={
                     "attachments": attachment_scans,
                     "bec_defense": bec_hit,
-                    "safelinks_rewritten": bool(processed_html != body_html or processed_plain != body_plain)
+                    "safelinks_rewritten": bool(processed_html != body_html or processed_plain != body_plain),
+                    "ml_heuristics": ml_verdict.get("heuristics", {}),
+                    "model_pipeline": ml_verdict.get("features", {})
                 },
                 ml_spam_probability=ml_verdict["spam_score"],
                 ml_phishing_probability=ml_verdict["phishing_score"],

@@ -8,21 +8,33 @@
                           window.location.hostname === "127.0.0.1" || 
                           window.location.hostname === "0.0.0.0";
     
-    // In local development, default to local FastAPI server on 8000
-    // In production on Netlify, defaults to Render backend
-    let defaultApiBase = isLocalhost ? "http://localhost:8000" : "https://mailguard-backend-ewuc.onrender.com";
+    // In local development, use local FastAPI server on 8000.
+    // On Netlify (or other hosted domains), default to "" (relative path)
+    // so Netlify's _redirects proxy (/api/* -> Render backend) handles all API requests.
+    // This completely eliminates CORS preflight blocks, network errors, and cross-origin drops.
+    let defaultApiBase = isLocalhost ? "http://localhost:8000" : "";
 
-    // Allow overriding from localStorage for easy switching in the browser
-    const storedApiBase = localStorage.getItem("mailguard_api_base_url");
+    // Clear legacy localStorage overrides on Netlify to avoid stale cross-origin failures
+    let storedApiBase = localStorage.getItem("mailguard_api_base_url");
+    if (!isLocalhost && storedApiBase && storedApiBase.includes("onrender.com")) {
+        localStorage.removeItem("mailguard_api_base_url");
+        storedApiBase = null;
+    }
+
     const activeApiBase = storedApiBase !== null ? storedApiBase : defaultApiBase;
+
+    // Default OAuth redirect URI based on environment
+    const defaultRedirectUri = isLocalhost 
+        ? "http://localhost:8000/api/v1/auth/google/callback" 
+        : "https://mailguard-backend-ewuc.onrender.com/api/v1/auth/google/callback";
 
     window.MAILGUARD_CONFIG = {
         // Base URL for the FastAPI Backend (empty string means relative to current domain / Netlify proxy)
         API_BASE_URL: activeApiBase.replace(/\/+$/, ""),
 
-        // Google OAuth defaults (can be loaded dynamically from /api/v1/auth/config)
-        GOOGLE_CLIENT_ID: "",
-        GOOGLE_REDIRECT_URI: "",
+        // Google OAuth defaults (fallback ensuring Google OAuth functions seamlessly even during backend cold-starts)
+        GOOGLE_CLIENT_ID: "499662365748-s0fbuc4fp37ibs9hh499a5o58oa2l3b3.apps.googleusercontent.com",
+        GOOGLE_REDIRECT_URI: defaultRedirectUri,
 
         // Method to update backend URL at runtime
         setApiBaseUrl: function(url) {

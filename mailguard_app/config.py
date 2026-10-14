@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
     GOOGLE_REDIRECT_URI: Optional[str] = "http://localhost:8000/api/v1/auth/google/callback"
-    FRONTEND_URL: Optional[str] = None
+    FRONTEND_URL: Optional[str] = "https://mailguardapp.netlify.app"
 
     STORAGE_DIR: str = "./storage"
     CORS_ORIGINS: List[str] = ["*"]

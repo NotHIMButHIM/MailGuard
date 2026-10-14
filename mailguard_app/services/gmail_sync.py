@@ -18,6 +18,9 @@ class GmailSyncService:
             return ""
 
     def _extract_parts(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        import re
+        import html
+
         body_plain = ""
         body_html = ""
         attachments = []
@@ -30,32 +33,47 @@ class GmailSyncService:
         subject = headers_dict.get("subject", "No Subject")
         message_id = headers_dict.get("message-id", "")
 
-        mime_type = payload.get("mimeType", "")
-        body_data = payload.get("body", {}).get("data", "")
+        def walk_parts(part_node: Dict[str, Any]):
+            nonlocal body_plain, body_html
+            p_mime = part_node.get("mimeType", "").lower()
+            p_body = part_node.get("body", {})
+            p_data = p_body.get("data", "")
+            fname = part_node.get("filename", "")
 
-        if mime_type == "text/plain" and body_data:
-            body_plain = self._decode_body(body_data)
-        elif mime_type == "text/html" and body_data:
-            body_html = self._decode_body(body_data)
-
-        parts = payload.get("parts", [])
-        for part in parts:
-            part_mime = part.get("mimeType", "")
-            part_body = part.get("body", {})
-            part_data = part_body.get("data", "")
-            filename = part.get("filename", "")
-
-            if filename:
+            if fname:
                 attachments.append({
-                    "filename": filename,
-                    "content_type": part_mime,
-                    "file_size": part_body.get("size", 0),
-                    "attachment_id": part_body.get("attachmentId", "")
+                    "filename": fname,
+                    "content_type": p_mime,
+                    "file_size": p_body.get("size", 0),
+                    "attachment_id": p_body.get("attachmentId", "")
                 })
-            elif part_mime == "text/plain" and part_data:
-                body_plain = self._decode_body(part_data)
-            elif part_mime == "text/html" and part_data:
-                body_html = self._decode_body(part_data)
+            elif p_mime == "text/plain" and p_data and not body_plain:
+                body_plain = self._decode_body(p_data)
+            elif p_mime == "text/html" and p_data and not body_html:
+                body_html = self._decode_body(p_data)
+
+            for child in part_node.get("parts", []):
+                walk_parts(child)
+
+        # Check top-level payload body
+        top_mime = payload.get("mimeType", "").lower()
+        top_data = payload.get("body", {}).get("data", "")
+        if top_mime == "text/plain" and top_data:
+            body_plain = self._decode_body(top_data)
+        elif top_mime == "text/html" and top_data:
+            body_html = self._decode_body(top_data)
+
+        # Recursively walk all parts
+        for part in payload.get("parts", []):
+            walk_parts(part)
+
+        # If body_plain is empty but body_html was received, extract clean plain text
+        if (not body_plain or not body_plain.strip()) and body_html:
+            clean = re.sub(r'<script.*?</script>', '', body_html, flags=re.DOTALL | re.IGNORECASE)
+            clean = re.sub(r'<style.*?</style>', '', clean, flags=re.DOTALL | re.IGNORECASE)
+            clean = re.sub(r'<(?:br|p|div|tr)[^>]*>', '\n', clean, flags=re.IGNORECASE)
+            clean = re.sub(r'<[^>]+>', ' ', clean)
+            body_plain = html.unescape(clean).strip()
 
         return {
             "sender": sender,

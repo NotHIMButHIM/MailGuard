@@ -64,9 +64,12 @@ async def _background_gmail_autofilter():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Auto-initialize database tables for fresh deployments (Render / PostgreSQL / SQLite)
-    from mailguard_app.database import engine, Base
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        from mailguard_app.database import engine, Base
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as e:
+        print(f"Database table initialization warning: {e}")
 
     # Auto-seed default administrator if not present
     from scripts.seed_admin import seed_admin

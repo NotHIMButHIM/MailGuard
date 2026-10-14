@@ -34,10 +34,6 @@
     </div>
 
     <div class="position-absolute top-0 end-0 p-3 d-flex align-items-center gap-2">
-        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#backendConfigModal" title="Backend Server Settings">
-            <i class="bi bi-gear-fill"></i>
-            <span class="small d-none d-sm-inline" id="backendStatusLabel">Backend API</span>
-        </button>
         <button type="button" onclick="toggleTheme()" class="theme-toggle-btn">
             <i class="theme-toggle-icon bi bi-sun-fill"></i>
             <span class="small d-none d-sm-inline">Theme</span>
@@ -124,48 +120,16 @@
         </div>
     </div>
 
-    <!-- Backend Settings Modal -->
-    <div class="modal fade" id="backendConfigModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-sliders me-2 text-info"></i>Backend API Configuration</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <p class="small text-muted mb-3">Configure the Render backend URL that this Netlify frontend communicates with.</p>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Backend API URL</label>
-                        <input type="text" id="customBackendInput" class="form-control font-monospace" placeholder="https://mailguard-backend.onrender.com">
-                        <div class="form-text small text-muted">Leave empty to use local server (http://localhost:8000) or Netlify proxy rewrite.</div>
-                    </div>
-                    <div class="p-3 bg-dark bg-opacity-50 rounded border border-secondary border-opacity-25 small mb-2">
-                        <div class="fw-semibold text-light mb-1">Active Backend Endpoint:</div>
-                        <div id="activeBackendUrlDisplay" class="font-monospace text-info text-break"></div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" onclick="resetBackendUrl()">Reset to Default</button>
-                    <button type="button" class="btn btn-info px-4" onclick="saveBackendUrl()">Save & Reload</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let runtimeConfig = null;
 
         async function initPage() {
-            // Update modal backend input display
-            const activeUrl = window.MAILGUARD_CONFIG.API_BASE_URL || (window.location.origin + " (Relative / Proxy)");
-            document.getElementById("activeBackendUrlDisplay").innerText = activeUrl;
-            document.getElementById("customBackendInput").value = window.MAILGUARD_CONFIG.API_BASE_URL || "";
-
             // Attempt to fetch runtime OAuth configuration from backend
-            runtimeConfig = await window.MAILGUARD_CONFIG.fetchRuntimeConfig();
-            if (runtimeConfig) {
-                document.getElementById("backendStatusLabel").innerText = "Backend Connected";
+            try {
+                runtimeConfig = await window.MAILGUARD_CONFIG.fetchRuntimeConfig();
+            } catch (err) {
+                console.warn("[Mailguard] Could not load runtime config:", err);
             }
 
             // Check URL search params to auto-switch tab if requested (?tab=admin or ?tab=employee)
@@ -214,7 +178,13 @@
                                 window.MAILGUARD_CONFIG.apiUrl("/api/v1/auth/google/callback");
 
             if (!clientId) {
-                alert("Google Client ID is not configured on the backend yet. Please set GOOGLE_CLIENT_ID in the backend environment variables or sign in with your corporate email/password.");
+                const errorAlert = document.getElementById("error-alert");
+                if (errorAlert) {
+                    errorAlert.innerText = "Google Client ID is not configured on the backend yet. Please sign in with your corporate email/password.";
+                    errorAlert.classList.remove("d-none");
+                } else {
+                    alert("Google Client ID is not configured on the backend yet. Please sign in with your corporate email/password.");
+                }
                 return;
             }
 
@@ -240,6 +210,10 @@
                     body: JSON.stringify({ email, password })
                 });
 
+                if (res.status === 502 || res.status === 503 || res.status === 504) {
+                    throw new Error("Backend service is currently waking up from free-tier sleep (takes ~45s). Please wait a few seconds and try again.");
+                }
+
                 const data = await res.json();
                 if (!res.ok) {
                     throw new Error(data.detail || "Authentication failed");
@@ -253,21 +227,14 @@
                     window.location.href = "./portal/employee.html";
                 }
             } catch (err) {
-                errorAlert.innerText = err.message;
+                let msg = err.message || "Authentication failed";
+                if (msg.includes("NetworkError") || msg.includes("Failed to fetch") || msg.includes("Network request failed")) {
+                    msg = "Unable to connect to the backend server. It may be spinning up from free-tier sleep (takes ~45s). Please retry in a few seconds.";
+                }
+                errorAlert.innerText = msg;
                 errorAlert.classList.remove("d-none");
                 submitBtn.disabled = false;
             }
-        }
-
-        function saveBackendUrl() {
-            const inputVal = document.getElementById("customBackendInput").value.trim();
-            window.MAILGUARD_CONFIG.setApiBaseUrl(inputVal);
-            window.location.reload();
-        }
-
-        function resetBackendUrl() {
-            window.MAILGUARD_CONFIG.setApiBaseUrl("");
-            window.location.reload();
         }
 
         document.addEventListener("DOMContentLoaded", initPage);
