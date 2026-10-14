@@ -21,9 +21,6 @@
                 <a href="./admin.html" class="nav-link text-info fw-semibold active">
                     <i class="bi bi-shield-shaded me-1"></i> Security Operations
                 </a>
-                <a href="./employee.html" class="nav-link text-muted">
-                    <i class="bi bi-person me-1"></i> Employee View
-                </a>
                 <button type="button" onclick="toggleTheme()" class="theme-toggle-btn btn-sm" title="Toggle Theme">
                     <i class="theme-toggle-icon bi bi-sun-fill"></i>
                 </button>
@@ -115,7 +112,19 @@
             <!-- Active Sessions Tab -->
             <div class="tab-pane fade show active" id="tab-sessions">
                 <div class="glass-panel p-4 mb-4">
-                    <h5 class="text-light mb-3"><i class="bi bi-broadcast text-success me-2"></i>Logged-In Employees & Active Sessions</h5>
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h5 class="text-light mb-0"><i class="bi bi-broadcast text-success me-2"></i>Logged-In Employees &amp; Active Sessions</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <button onclick="removeInactiveSessions()" class="btn btn-outline-warning btn-sm d-flex align-items-center gap-1" title="Purge and remove all stale or inactive sessions">
+                                <i class="bi bi-trash3"></i>
+                                <span>Remove Inactive Sessions</span>
+                            </button>
+                            <button onclick="loadActiveSessions(); loadDashboardStats();" class="btn btn-outline-success btn-sm d-flex align-items-center gap-1" title="Refresh Live Active Sessions">
+                                <i class="bi bi-arrow-clockwise"></i>
+                                <span>Refresh</span>
+                            </button>
+                        </div>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-dark-custom align-middle">
                             <thead>
@@ -138,7 +147,13 @@
                 </div>
 
                 <div class="glass-panel p-4">
-                    <h5 class="text-light mb-3"><i class="bi bi-person-lines-fill text-info me-2"></i>All Provisioned Users</h5>
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h5 class="text-light mb-0"><i class="bi bi-person-lines-fill text-info me-2"></i>All Provisioned Users</h5>
+                        <a href="./employee.html" class="btn btn-outline-info btn-sm fw-semibold d-flex align-items-center gap-1" title="Open Employee Prevention & Inbox View">
+                            <i class="bi bi-person-workspace"></i>
+                            <span>Employee View Portal</span>
+                        </a>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-dark-custom align-middle">
                             <thead>
@@ -409,63 +424,100 @@
 
         async function loadActiveSessions() {
             try {
-                const res = await apiRequest("/api/v1/admin/users/sessions");
+                let res = await apiRequest("/api/v1/admin/active-sessions");
+                if (!res.ok) {
+                    res = await apiRequest("/api/v1/admin/users/sessions");
+                }
                 const sessions = await res.json();
                 const tbody = document.getElementById("activeSessionsTable");
-                if (sessions.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No active employee sessions found.</td></tr>';
+                if (!tbody) return;
+                if (!Array.isArray(sessions) || sessions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No active employee sessions currently online.</td></tr>';
                     return;
                 }
-                tbody.innerHTML = sessions.map(s => `
-                    <tr>
-                        <td><code>#${s.user_id}</code></td>
-                        <td class="fw-semibold text-light">${s.user_name || 'Employee'}</td>
-                        <td>${s.user_email}</td>
-                        <td><code class="small text-info">${s.session_token.substring(0, 14)}...</code></td>
-                        <td><span class="badge bg-dark border border-secondary">${s.ip_address || '127.0.0.1'}</span></td>
-                        <td class="text-truncate text-muted small" style="max-width: 180px;">${s.user_agent || 'Browser'}</td>
-                        <td class="text-muted small">${new Date(s.created_at).toLocaleTimeString()}</td>
-                        <td>
-                            <button class="btn btn-outline-danger btn-sm py-0 px-2" onclick="revokeSession(${s.id})">
-                                Revoke
-                            </button>
-                        </td>
-                    </tr>
-                `).join("");
+                tbody.innerHTML = sessions.map(s => {
+                    const uName = (s.user && s.user.full_name) || s.user_name || 'Employee';
+                    const uEmail = (s.user && s.user.email) || s.user_email || 'Unknown';
+                    const uRole = (s.user && s.user.role) || s.user_role || 'EMPLOYEE';
+                    const roleBadge = uRole === 'ADMIN' ? '<span class="badge bg-danger ms-1">ADMIN</span>' : '<span class="badge bg-info ms-1">EMPLOYEE</span>';
+                    const tokenSnippet = s.session_token ? (s.session_token.substring(0, 14) + '...') : 'Active';
+                    return `
+                        <tr>
+                            <td><code>#${s.user_id}</code></td>
+                            <td class="fw-semibold text-light">${uName} ${roleBadge}</td>
+                            <td class="text-info">${uEmail}</td>
+                            <td><code class="small text-info">${tokenSnippet}</code></td>
+                            <td><span class="badge bg-dark border border-secondary">${s.ip_address || '127.0.0.1'}</span></td>
+                            <td class="text-truncate text-muted small" style="max-width: 180px;" title="${s.user_agent || 'Browser'}">${s.user_agent || 'Browser'}</td>
+                            <td class="text-muted small">${new Date(s.last_activity || s.created_at).toLocaleTimeString()}</td>
+                            <td>
+                                <button class="btn btn-outline-danger btn-sm py-0 px-2" onclick="revokeSession(${s.id})" title="Revoke this active session">
+                                    <i class="bi bi-x-circle me-1"></i>Revoke
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join("");
             } catch(err) {
-                console.error(err);
+                console.error("Failed to load active sessions:", err);
             }
         }
 
         async function revokeSession(id) {
             if (!confirm("Revoke this active employee session immediately?")) return;
             try {
-                await apiRequest(`/api/v1/admin/users/sessions/${id}`, { method: "DELETE" });
+                let res = await apiRequest(`/api/v1/admin/sessions/${id}`, { method: "DELETE" });
+                if (!res.ok) {
+                    res = await apiRequest(`/api/v1/admin/users/sessions/${id}`, { method: "DELETE" });
+                }
                 loadActiveSessions();
             } catch(err) {
                 alert(err.message);
             }
         }
 
+        async function removeInactiveSessions() {
+            try {
+                let res = await apiRequest("/api/v1/admin/sessions/inactive", { method: "DELETE" });
+                if (res.ok) {
+                    await loadActiveSessions();
+                    await loadDashboardStats();
+                }
+            } catch(err) {
+                console.error("Failed to remove inactive sessions:", err);
+            }
+        }
+
         async function loadEmployeesData() {
             try {
-                const res = await apiRequest("/api/v1/admin/users/?limit=100");
+                let res = await apiRequest("/api/v1/admin/users/?limit=100");
+                if (!res.ok) {
+                    res = await apiRequest("/api/v1/admin/employees");
+                }
                 const users = await res.json();
-                document.getElementById("statEmployees").innerText = users.filter(u => u.is_active).length;
+                if (!Array.isArray(users)) return;
+                const activeCount = users.filter(u => u.is_active !== false).length;
+                const statEmployees = document.getElementById("statEmployees");
+                if (statEmployees) statEmployees.innerText = activeCount;
                 const tbody = document.getElementById("allEmployeesTable");
+                if (!tbody) return;
+                if (users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No provisioned users found.</td></tr>';
+                    return;
+                }
                 tbody.innerHTML = users.map(u => `
                     <tr>
-                        <td><code>#${u.id}</code></td>
+                        <td><code>#${u.id || u.user_id}</code></td>
                         <td class="fw-semibold text-light">${u.full_name || 'N/A'}</td>
                         <td>${u.email}</td>
-                        <td><span class="badge ${u.role === 'ADMIN' ? 'bg-danger' : 'bg-info'}">${u.role}</span></td>
+                        <td><span class="badge ${u.role === 'ADMIN' ? 'bg-danger' : 'bg-info'}">${u.role || 'EMPLOYEE'}</span></td>
                         <td>${u.is_google_user ? '<i class="bi bi-google text-warning"></i> Google' : '<i class="bi bi-envelope"></i> Password'}</td>
-                        <td><span class="badge ${u.is_active ? 'bg-success' : 'bg-secondary'}">${u.is_active ? 'ACTIVE' : 'INACTIVE'}</span></td>
+                        <td><span class="badge ${u.is_active !== false ? 'bg-success' : 'bg-secondary'}">${u.is_active !== false ? 'ACTIVE' : 'INACTIVE'}</span></td>
                         <td class="text-muted small">${u.last_login_at ? new Date(u.last_login_at).toLocaleString() : 'Never'}</td>
                     </tr>
                 `).join("");
             } catch(err) {
-                console.error(err);
+                console.error("Failed to load employees data:", err);
             }
         }
 
@@ -740,7 +792,7 @@
             const token = getAuthToken();
             const role = getAuthRole();
             if (!token) {
-                window.location.replace("../index.html");
+                window.location.replace("../login.html");
                 return;
             }
             if (role !== "ADMIN") {
@@ -756,16 +808,20 @@
             loadDLP();
             loadAudit();
 
-            // Auto-refresh dashboard data every 15 seconds
+            // Fast live update for active sessions and employee stats every 3 seconds
             setInterval(() => {
                 loadDashboardStats();
                 loadActiveSessions();
+            }, 3000);
+
+            // General refresh for tickets, quarantine, and audit every 10 seconds
+            setInterval(() => {
                 loadEmployeesData();
                 loadQuarantine();
                 loadTickets();
                 loadDLP();
                 loadAudit();
-            }, 15000);
+            }, 10000);
         });
     </script>
 </body>

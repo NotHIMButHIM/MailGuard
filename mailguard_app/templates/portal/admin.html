@@ -6,9 +6,6 @@
 <a href="/portal/admin" class="nav-link text-info fw-semibold active">
     <i class="bi bi-shield-shaded me-1"></i> Security Operations
 </a>
-<a href="/portal/employee" class="nav-link text-muted">
-    <i class="bi bi-person me-1"></i> Employee View
-</a>
 {% endblock %}
 
 {% block content %}
@@ -88,7 +85,19 @@
 <div class="tab-content">
     <div class="tab-pane fade show active" id="tab-sessions">
         <div class="glass-panel p-4 mb-4">
-            <h5 class="text-light mb-3"><i class="bi bi-broadcast text-success me-2"></i>Logged-In Employees & Active Sessions</h5>
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h5 class="text-light mb-0"><i class="bi bi-broadcast text-success me-2"></i>Logged-In Employees &amp; Active Sessions</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <button onclick="removeInactiveSessions()" class="btn btn-outline-warning btn-sm d-flex align-items-center gap-1" title="Purge and remove all stale or inactive sessions">
+                        <i class="bi bi-trash3"></i>
+                        <span>Remove Inactive Sessions</span>
+                    </button>
+                    <button onclick="loadActiveSessions(); loadDashboardStats();" class="btn btn-outline-success btn-sm d-flex align-items-center gap-1" title="Refresh Live Active Sessions">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table table-dark-custom align-middle">
                     <thead>
@@ -113,10 +122,16 @@
         <div class="glass-panel p-4">
             <div class="d-flex align-items-center justify-content-between mb-3">
                 <h5 class="text-light mb-0"><i class="bi bi-folder2-open text-info me-2"></i>Registered Corporate Employees</h5>
-                <button class="btn btn-info btn-sm fw-semibold d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#addEmployeeModal">
-                    <i class="bi bi-person-plus-fill"></i>
-                    <span>Add Employee</span>
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="/portal/employee" class="btn btn-outline-info btn-sm fw-semibold d-flex align-items-center gap-1" title="Open Employee Prevention & Inbox View">
+                        <i class="bi bi-person-workspace"></i>
+                        <span>Employee View Portal</span>
+                    </a>
+                    <button class="btn btn-info btn-sm fw-semibold d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#addEmployeeModal">
+                        <i class="bi bi-person-plus-fill"></i>
+                        <span>Add Employee</span>
+                    </button>
+                </div>
             </div>
             <div class="table-responsive">
                 <table class="table table-dark-custom align-middle">
@@ -156,13 +171,9 @@
                                 <input type="text" id="newEmpName" class="form-control" placeholder="Jane Doe" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label text-muted small">Corporate Email Address</label>
-                                <input type="email" id="newEmpEmail" class="form-control" placeholder="jane.doe@company.com" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label text-muted small">Initial Password</label>
-                                <input type="password" id="newEmpPass" class="form-control" placeholder="••••••••" value="EmployeePass@2026!" required>
-                                <span class="text-muted small">Employee can login with this password or with their corporate Google account.</span>
+                                <label class="form-label text-muted small">Gmail Address</label>
+                                <input type="email" id="newEmpEmail" class="form-control" placeholder="employee@gmail.com" required>
+                                <span class="text-muted small">The employee will log in using Google OAuth with this Gmail address.</span>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label text-muted small">Department / Organization</label>
@@ -562,28 +573,61 @@ async function loadActiveSessions() {
         const res = await apiRequest("/api/v1/admin/active-sessions");
         const sessions = await res.json();
         const tbody = document.getElementById("activeSessionsTable");
-        if (sessions.length === 0) {
+        if (!Array.isArray(sessions) || sessions.length === 0) {
             tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No active employee sessions currently online.</td></tr>';
             return;
         }
-        tbody.innerHTML = sessions.map(s => `
-            <tr>
-                <td>#${s.user_id}</td>
-                <td class="fw-semibold text-light">${s.user ? s.user.full_name : 'Employee'}</td>
-                <td class="text-info">${s.user ? s.user.email : 'Unknown'}</td>
-                <td><code>${s.session_token.substring(0, 12)}...</code></td>
-                <td>${s.ip_address || '127.0.0.1'}</td>
-                <td class="text-truncate text-muted small" style="max-width: 180px;">${s.user_agent || 'Unknown'}</td>
-                <td class="text-muted small">${new Date(s.last_activity).toLocaleTimeString()}</td>
-                <td>
-                    <button onclick="revokeSession(${s.id})" class="btn btn-outline-danger btn-sm py-0 px-2">
-                        Revoke
-                    </button>
-                </td>
-            </tr>
-        `).join("");
+        tbody.innerHTML = sessions.map(s => {
+            const uName = (s.user && s.user.full_name) || s.user_name || 'Employee';
+            const uEmail = (s.user && s.user.email) || s.user_email || 'Unknown';
+            const uRole = (s.user && s.user.role) || s.user_role || 'EMPLOYEE';
+            const roleBadge = uRole === 'ADMIN' ? '<span class="badge bg-danger ms-1">ADMIN</span>' : '<span class="badge bg-info ms-1">EMPLOYEE</span>';
+            const tokenSnippet = s.session_token ? (s.session_token.substring(0, 14) + '...') : 'Active';
+            return `
+                <tr>
+                    <td>#${s.user_id}</td>
+                    <td class="fw-semibold text-light">${uName} ${roleBadge}</td>
+                    <td class="text-info">${uEmail}</td>
+                    <td><code>${tokenSnippet}</code></td>
+                    <td>${s.ip_address || '127.0.0.1'}</td>
+                    <td class="text-truncate text-muted small" style="max-width: 180px;" title="${s.user_agent || 'Browser'}">${s.user_agent || 'Browser'}</td>
+                    <td class="text-muted small">${new Date(s.last_activity || s.created_at).toLocaleTimeString()}</td>
+                    <td>
+                        <button onclick="revokeSession(${s.id})" class="btn btn-outline-danger btn-sm py-0 px-2" title="Revoke this active session">
+                            <i class="bi bi-x-circle me-1"></i>Revoke
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join("");
     } catch(err) {
-        console.error(err);
+        console.error("Failed to load active sessions:", err);
+    }
+}
+
+async function revokeSession(id) {
+    if (!confirm("Revoke this active employee session immediately?")) return;
+    try {
+        let res = await apiRequest(`/api/v1/admin/sessions/${id}`, { method: "DELETE" });
+        if (!res.ok) {
+            res = await apiRequest(`/api/v1/admin/users/sessions/${id}`, { method: "DELETE" });
+        }
+        await loadActiveSessions();
+        await loadDashboardStats();
+    } catch(err) {
+        alert(err.message);
+    }
+}
+
+async function removeInactiveSessions() {
+    try {
+        let res = await apiRequest("/api/v1/admin/sessions/inactive", { method: "DELETE" });
+        if (res.ok) {
+            await loadActiveSessions();
+            await loadDashboardStats();
+        }
+    } catch(err) {
+        console.error("Failed to remove inactive sessions:", err);
     }
 }
 
@@ -626,13 +670,12 @@ async function handleCreateEmployee(e) {
 
     const full_name = document.getElementById("newEmpName").value.trim();
     const email = document.getElementById("newEmpEmail").value.trim();
-    const password = document.getElementById("newEmpPass").value;
     const organization_name = document.getElementById("newEmpOrg").value.trim();
 
     try {
         const res = await apiRequest("/api/v1/admin/employees", {
             method: "POST",
-            body: JSON.stringify({ full_name, email, password, organization_name })
+            body: JSON.stringify({ full_name, email, organization_name })
         });
         const data = await res.json();
         if (!res.ok) {
@@ -786,10 +829,10 @@ async function testMLPrediction(e) {
         });
         const data = await res.json();
         const box = document.getElementById("mlPredictionResult");
-        box.classList.remove("d-none");
+        const vClass = data.verdict === 'CLEAN' ? 'bg-success' : (data.verdict === 'SUSPICIOUS' ? 'badge-suspicious' : (data.verdict === 'SPAM' ? 'badge-spam' : 'bg-danger'));
         box.innerHTML = `
             <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="fw-bold">Verdict: <span class="badge ${data.verdict === 'CLEAN' ? 'bg-success' : 'bg-danger'}">${data.verdict}</span></span>
+                <span class="fw-bold">Verdict: <span class="badge ${vClass}">${data.verdict}</span></span>
                 <span class="text-muted small">Heuristic Boost: ${data.heuristics.heuristic_boost}</span>
             </div>
             <div class="small">
@@ -868,10 +911,14 @@ document.addEventListener("DOMContentLoaded", () => {
     loadDLP();
     loadAudit();
 
-    // Auto-refresh dashboard data every 15 seconds
+    // Auto-refresh active sessions & stats rapidly every 3 seconds
     setInterval(() => {
         loadDashboardStats();
         loadActiveSessions();
+    }, 3000);
+
+    // Refresh other tabs every 15 seconds
+    setInterval(() => {
         loadEmployeesData();
         loadQuarantine();
         loadTickets();

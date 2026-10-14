@@ -44,6 +44,7 @@ def test_frontend_distribution_files():
 
     # Frontend essentials
     assert (frontend_dir / "index.html").exists()
+    assert (frontend_dir / "login.html").exists()
     assert (frontend_dir / "portal" / "employee.html").exists()
     assert (frontend_dir / "portal" / "admin.html").exists()
     assert (frontend_dir / "css" / "main.css").exists()

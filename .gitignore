@@ -1,6 +1,7 @@
 .env
 .env.local
-.env.*.local
+.env.*
+!.env.example
 *.db
 *.sqlite
 *.sqlite3
@@ -20,3 +21,8 @@ ENV/
 .idea/
 .vscode/
 *.log
+report/
+~$*
+.DS_Store
+Thumbs.db
+

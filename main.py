@@ -4,7 +4,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from mailguard_app.config import get_settings
 from mailguard_app.core.middleware import RequestTimingMiddleware, SecurityHeadersMiddleware
@@ -131,6 +132,9 @@ app.add_middleware(RequestTimingMiddleware)
 static_path = Path(__file__).resolve().parent / "mailguard_app" / "static"
 app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
+templates_path = Path(__file__).resolve().parent / "mailguard_app" / "templates"
+templates = Jinja2Templates(directory=str(templates_path))
+
 app.include_router(auth_views_router)
 app.include_router(portal_views_router)
 
@@ -154,21 +158,11 @@ async def favicon():
     return Response(status_code=204)
 
 
-@app.api_route("/", methods=["GET", "HEAD"])
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def root(request: Request):
     if request.method == "HEAD":
         return Response(status_code=200)
-    token = request.cookies.get("mailguard_token")
-    if token:
-        try:
-            payload = decode_token(token)
-            if payload and payload.get("role") == "ADMIN":
-                return RedirectResponse(url="/portal/admin")
-            elif payload:
-                return RedirectResponse(url="/portal/employee")
-        except Exception:
-            pass
-    return RedirectResponse(url="/login")
+    return templates.TemplateResponse(request=request, name="home.html")
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])

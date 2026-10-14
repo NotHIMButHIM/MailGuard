@@ -214,6 +214,8 @@ async def google_login(
     if user:
         if user.role == "ADMIN":
             raise AuthenticationError("Administrator accounts are restricted to corporate email and password authentication only.")
+        if not user.is_active:
+            raise AuthenticationError("Your employee account has been deactivated. Please contact your administrator.")
         user.is_google_user = True
         user.google_id = google_id
         if avatar_url:
@@ -225,24 +227,9 @@ async def google_login(
         user.last_login_at = datetime.now(timezone.utc)
         user.last_login_ip = client_ip
     else:
-        if payload.preferred_role and payload.preferred_role == UserRole.ADMIN:
-            raise AuthenticationError("Administrator accounts cannot be authenticated via Google OAuth. Please sign in with email and password.")
-        user = User(
-            email=email,
-            full_name=full_name,
-            role="EMPLOYEE",
-            is_active=True,
-            is_google_user=True,
-            google_id=google_id,
-            google_access_token=access_token_google,
-            google_refresh_token=refresh_token_google,
-            avatar_url=avatar_url,
-            organization_name="Enterprise Corp",
-            last_login_at=datetime.now(timezone.utc),
-            last_login_ip=client_ip
+        raise AuthenticationError(
+            f"Access Denied: '{email}' is not registered as an authorized employee. An administrator must add your email to the employee list in the Admin Portal before you can sign in."
         )
-        db.add(user)
-        await db.flush()
 
     session_token = f"sess_{uuid.uuid4().hex}"
     new_session = UserSession(
@@ -316,19 +303,29 @@ async def google_callback_get(
     error: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
+    import urllib.parse
+    from fastapi.responses import RedirectResponse
+
     if error:
-        raise AuthenticationError(f"Google OAuth error: {error}")
+        err_msg = urllib.parse.quote(f"Google OAuth error: {error}")
+        return RedirectResponse(url=f"/login?error={err_msg}", status_code=303)
 
     if state == "ADMIN":
-        raise AuthenticationError("Administrator accounts are restricted to email and password authentication only.")
+        err_msg = urllib.parse.quote("Administrator accounts are restricted to email and password authentication only.")
+        return RedirectResponse(url=f"/login?error={err_msg}", status_code=303)
 
     if not code:
-        raise AuthenticationError("Authorization code is missing from callback")
+        err_msg = urllib.parse.quote("Authorization code is missing from callback")
+        return RedirectResponse(url=f"/login?error={err_msg}", status_code=303)
 
     callback_uri = str(request.url).split("?")[0]
     auth_req = GoogleAuthRequest(code=code, redirect_uri=callback_uri, preferred_role=UserRole.EMPLOYEE)
 
-    token_result = await google_login(payload=auth_req, request=request, db=db)
+    try:
+        token_result = await google_login(payload=auth_req, request=request, db=db)
+    except AuthenticationError as e:
+        err_msg = urllib.parse.quote(e.detail)
+        return RedirectResponse(url=f"/login?error={err_msg}", status_code=303)
     target_portal = "/portal/employee"
     if settings.FRONTEND_URL:
         target_portal = f"{settings.FRONTEND_URL.rstrip('/')}/portal/employee.html"
@@ -387,9 +384,8 @@ async def logout_user(
 ):
     user_id = int(current_user.sub)
     await db.execute(
-        update(UserSession)
-        .where(UserSession.user_id == user_id, UserSession.is_active == True)
-        .values(is_active=False)
+        delete(UserSession)
+        .where(UserSession.user_id == user_id)
     )
     audit = AuditLog(
         user_id=user_id,

@@ -14,6 +14,9 @@ class ActiveEmployeeSessionResponse(BaseModel):
     last_activity: datetime
     created_at: datetime
     user: Optional[UserResponse] = None
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
+    user_role: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -33,7 +36,7 @@ class EmployeeDataSummary(BaseModel):
 class EmployeeCreateRequest(BaseModel):
     email: str
     full_name: str
-    password: str = "EmployeePass@2026!"
+    password: Optional[str] = None
     organization_name: Optional[str] = "Default Organization"
 
 

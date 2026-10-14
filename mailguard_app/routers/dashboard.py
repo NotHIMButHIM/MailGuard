@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, update
+from sqlalchemy import select, func, or_, update, delete
 from mailguard_app.database import get_db
 from mailguard_app.models.user import User, UserSession
 from mailguard_app.models.email import Email
@@ -44,13 +44,19 @@ async def get_dashboard_statistics(
     dlp_filter = [] if is_admin else [DLPIncident.user_id == user_id]
     dlp_count = (await db.execute(select(func.count(DLPIncident.id)).where(*dlp_filter))).scalar() or 0
 
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=2)
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
 
-    # Automatically mark sessions inactive if idle for > 2 hours
+    # Automatically mark sessions inactive if idle for > 15 minutes
     await db.execute(
         update(UserSession)
         .where(UserSession.is_active == True, UserSession.last_activity < cutoff)
         .values(is_active=False)
+    )
+
+    # Automatically purge inactive sessions so they do not accumulate
+    await db.execute(
+        delete(UserSession)
+        .where(UserSession.is_active == False)
     )
 
     # Touch calling user's active session

@@ -66,20 +66,23 @@ class ThreatPredictor:
         raw_phish_prob = self.predict_phishing_score(full_text)
         heuristics = self.analyze_heuristics(subject, body)
 
-        final_spam_score = min(100.0, raw_spam_prob * 0.7 + heuristics["heuristic_boost"] * 0.3)
-        final_phish_score = min(100.0, raw_phish_prob * 0.7 + heuristics["heuristic_boost"] * 0.3)
+        final_spam_score = min(100.0, max(raw_spam_prob, raw_spam_prob * 0.7 + heuristics["heuristic_boost"] * 0.3))
+        final_phish_score = min(100.0, max(raw_phish_prob, raw_phish_prob * 0.7 + heuristics["heuristic_boost"] * 0.3))
+
+        rounded_spam = round(final_spam_score)
+        rounded_phish = round(final_phish_score)
 
         verdict = "CLEAN"
-        if final_phish_score >= 75:
+        if rounded_phish >= 75:
             verdict = "PHISHING"
-        elif final_spam_score >= 70:
+        elif rounded_spam >= 70:
             verdict = "SPAM"
-        elif final_phish_score >= 45 or final_spam_score >= 45:
+        elif rounded_phish >= 45 or rounded_spam >= 45:
             verdict = "SUSPICIOUS"
 
         return {
-            "spam_score": round(final_spam_score),
-            "phishing_score": round(final_phish_score),
+            "spam_score": rounded_spam,
+            "phishing_score": rounded_phish,
             "verdict": verdict,
             "heuristics": heuristics
         }

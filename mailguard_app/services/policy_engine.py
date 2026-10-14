@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from mailguard_app.models.prevention import EmployeePreventionRule
 from mailguard_app.models.policy import PolicyRule
+from mailguard_app.models.user import User
 
 
 class PolicyEngine:
@@ -15,6 +16,14 @@ class PolicyEngine:
         body: str,
         db: AsyncSession
     ) -> Optional[Dict[str, Any]]:
+        if not user_id:
+            return None
+
+        # Verify that this user is an EMPLOYEE (rules are never evaluated on admins)
+        user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+        if not user or user.role != "EMPLOYEE":
+            return None
+
         stmt = select(EmployeePreventionRule).where(
             EmployeePreventionRule.user_id == user_id,
             EmployeePreventionRule.is_active == True

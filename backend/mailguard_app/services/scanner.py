@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -149,6 +150,14 @@ class MailScannerService:
         quarantine_record = None
 
         if db:
+            email_date = None
+            if raw_headers and "date" in raw_headers:
+                try:
+                    import email.utils
+                    email_date = email.utils.parsedate_to_datetime(raw_headers["date"])
+                except Exception:
+                    email_date = None
+
             email_record = Email(
                 user_id=user_id,
                 sender=sender,
@@ -163,7 +172,8 @@ class MailScannerService:
                 isolation_status=isolation_status,
                 spam_score=ml_verdict["spam_score"],
                 phishing_score=ml_verdict["phishing_score"],
-                threat_verdict=threat_verdict
+                threat_verdict=threat_verdict,
+                created_at=email_date or datetime.now(timezone.utc)
             )
             db.add(email_record)
             await db.commit()

@@ -3,6 +3,8 @@ import uuid
 from unittest.mock import patch
 from httpx import AsyncClient, ASGITransport
 from main import app
+from mailguard_app.database import AsyncSessionLocal
+from mailguard_app.models.user import User
 
 
 @pytest.mark.asyncio
@@ -116,9 +118,10 @@ async def test_unified_auth_and_portal_api_flow():
 @pytest.mark.asyncio
 async def test_google_oauth_login_flow():
     uid = uuid.uuid4().hex[:8]
+    test_email = f"google_user_{uid}@example.com"
     mock_google_profile = {
         "google_id": f"google-sub-{uid}",
-        "email": f"google_user_{uid}@example.com",
+        "email": test_email,
         "full_name": "Google Test User",
         "avatar_url": "https://lh3.googleusercontent.com/a/default-user",
         "email_verified": True
@@ -127,13 +130,32 @@ async def test_google_oauth_login_flow():
     transport = ASGITransport(app=app)
     with patch("mailguard_app.routers.auth.verify_google_id_token", return_value=mock_google_profile):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            # 1. Unregistered Google account should be denied
+            denied_res = await ac.post("/api/v1/auth/google/login", json={
+                "credential": "mocked-jwt-id-token-xyz"
+            })
+            assert denied_res.status_code == 401
+            assert "not registered as an authorized employee" in denied_res.json()["detail"]
+
+            # 2. Provision employee in database
+            async with AsyncSessionLocal() as session:
+                emp = User(
+                    email=test_email,
+                    full_name="Google Test User",
+                    role="EMPLOYEE",
+                    is_active=True
+                )
+                session.add(emp)
+                await session.commit()
+
+            # 3. Now Google login should succeed
             res = await ac.post("/api/v1/auth/google/login", json={
                 "credential": "mocked-jwt-id-token-xyz"
             })
             assert res.status_code == 200
             data = res.json()
             assert data["role"] == "EMPLOYEE"
-            assert data["user"]["email"] == f"google_user_{uid}@example.com"
+            assert data["user"]["email"] == test_email
             assert data["user"]["is_google_user"] is True
             assert "access_token" in data
 

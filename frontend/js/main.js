@@ -109,11 +109,11 @@ window.logout = function() {
             headers: { "Authorization": "Bearer " + token }
         }).catch(() => {}).finally(() => {
             window.clearAuthSession();
-            window.location.href = window.location.pathname.includes("/portal/") ? "../index.html" : "/index.html";
+            window.location.href = window.location.pathname.includes("/portal/") ? "../login.html" : "./login.html";
         });
     } else {
         window.clearAuthSession();
-        window.location.href = window.location.pathname.includes("/portal/") ? "../index.html" : "/index.html";
+        window.location.href = window.location.pathname.includes("/portal/") ? "../login.html" : "./login.html";
     }
 };
 
@@ -141,7 +141,7 @@ window.apiRequest = async function(url, options = {}) {
         if (res.status === 401) {
             window.clearAuthSession();
             alert("Your session has expired. Please sign in again.");
-            const loginPath = window.location.pathname.includes("/portal/") ? "../index.html" : "/index.html";
+            const loginPath = window.location.pathname.includes("/portal/") ? "../login.html" : "./login.html";
             window.location.href = loginPath;
             throw new Error("Session expired");
         }

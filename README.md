@@ -197,7 +197,8 @@ Mailguard/
 │   └── README.md             # Render deployment walkthrough
 │
 ├── frontend/                 # Standalone Client Portal (Deploy to Netlify)
-│   ├── index.html            # Unified Employee & Admin Login
+│   ├── index.html            # Gateway Landing & Threat Defense Overview Homepage
+│   ├── login.html            # Unified Employee & Admin Login Portal
 │   ├── portal/
 │   │   ├── employee.html     # Employee Prevention & Inspected Inbox Portal
 │   │   └── admin.html        # SOC Security Operations Center Portal

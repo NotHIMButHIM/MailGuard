@@ -21,6 +21,10 @@
                 <a href="./employee.html" class="nav-link text-info fw-semibold active">
                     <i class="bi bi-shield-check me-1"></i> Prevention & Inbox
                 </a>
+                <a href="./admin.html" id="returnToAdminNavBtn" class="btn btn-warning btn-sm fw-bold px-3 d-none d-flex align-items-center gap-1 shadow-sm text-dark">
+                    <i class="bi bi-shield-lock-fill"></i>
+                    <span>Return to Admin Portal</span>
+                </a>
                 <button type="button" onclick="toggleTheme()" class="theme-toggle-btn btn-sm" title="Toggle Theme">
                     <i class="theme-toggle-icon bi bi-sun-fill"></i>
                 </button>
@@ -33,6 +37,18 @@
     </nav>
 
     <main class="container-fluid py-4 px-4">
+        <!-- Admin Mode Return Banner -->
+        <div id="adminModeBanner" class="alert alert-warning py-2 px-3 mb-4 d-none d-flex align-items-center justify-content-between border-0 shadow-sm" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3) !important;">
+            <div class="d-flex align-items-center gap-2 small fw-semibold text-warning">
+                <i class="bi bi-shield-lock-fill fs-5"></i>
+                <span>Admin Mode: You are viewing the Employee Prevention &amp; Inbox Portal.</span>
+            </div>
+            <a href="./admin.html" class="btn btn-warning btn-sm fw-bold px-3 d-flex align-items-center gap-1 text-dark">
+                <i class="bi bi-arrow-left"></i>
+                <span>Return to Admin Portal</span>
+            </a>
+        </div>
+
         <div class="row g-4">
             <!-- Left Column: Rules & Manual Scan -->
             <div class="col-lg-4">
@@ -362,6 +378,19 @@
             }
         }
 
+        function getVerdictBadgeClass(threat_verdict, status) {
+            if (threat_verdict === "BEC_IMPERSONATION") return "bg-danger text-white border border-danger";
+            if (["MALICIOUS", "AUTH_FAILED", "DLP_VIOLATION"].includes(threat_verdict)) return "badge-phishing";
+            if (threat_verdict === "PHISHING") return "badge-phishing";
+            if (threat_verdict === "SPAM") return "badge-spam";
+            if (threat_verdict === "SUSPICIOUS") return "badge-suspicious";
+            if (threat_verdict === "BLOCKED" || threat_verdict === "POLICY_VIOLATION") return "badge-blocked";
+            if (status === "QUARANTINED") return "badge-quarantined";
+            if (status === "ISOLATED") return "badge-isolated";
+            if (status === "BLOCKED") return "badge-blocked";
+            return "badge-clean";
+        }
+
         async function loadEmails() {
             try {
                 const res = await apiRequest("/api/v1/emails/?limit=50");
@@ -373,12 +402,7 @@
                 }
 
                 tbody.innerHTML = emails.map(m => {
-                    let verdictClass = "badge-clean";
-                    if (m.threat_verdict === "SPAM") verdictClass = "badge-spam";
-                    if (m.threat_verdict === "PHISHING") verdictClass = "badge-phishing";
-                    if (m.status === "QUARANTINED") verdictClass = "badge-quarantined";
-                    if (m.status === "ISOLATED") verdictClass = "badge-isolated";
-                    if (m.status === "BLOCKED") verdictClass = "badge-blocked";
+                    const verdictClass = getVerdictBadgeClass(m.threat_verdict, m.status);
 
                     return `
                         <tr>
@@ -415,19 +439,32 @@
                 document.getElementById("reviewPhishingScore").innerText = formatScore(email.phishing_score);
                 document.getElementById("reviewFooterId").innerText = `Message ID: #${email.id}`;
 
-                let verdictClass = "badge-clean";
-                if (email.threat_verdict === "SPAM") verdictClass = "badge-spam";
-                if (email.threat_verdict === "PHISHING") verdictClass = "badge-phishing";
-                if (email.status === "QUARANTINED") verdictClass = "badge-quarantined";
-                if (email.status === "ISOLATED") verdictClass = "badge-isolated";
+                const verdictClass = getVerdictBadgeClass(email.threat_verdict, email.status);
 
                 const verdictBadge = document.getElementById("reviewVerdictBadge");
                 verdictBadge.className = `badge ${verdictClass} fs-6`;
                 verdictBadge.innerText = email.threat_verdict;
 
                 const statusBadge = document.getElementById("reviewStatusBadge");
-                statusBadge.className = `badge ${verdictClass}`;
+                statusBadge.className = `badge bg-dark border border-secondary`;
                 statusBadge.innerText = email.status;
+
+                const noticeEl = document.getElementById("reviewNotice");
+                if (noticeEl) {
+                    if (email.threat_verdict === "BEC_IMPERSONATION") {
+                        noticeEl.innerText = "Executive impersonation / BEC threat detected. Email isolated immediately.";
+                    } else if (email.status === "QUARANTINED") {
+                        noticeEl.innerText = "Message isolated from inbox due to elevated threat profile.";
+                    } else if (email.status === "BLOCKED") {
+                        noticeEl.innerText = "Message intercepted by custom prevention filter rule.";
+                    } else if (email.threat_verdict === "SUSPICIOUS") {
+                        noticeEl.innerText = "Warning: Elevated threat signals detected. Time-of-click link protections and banners applied.";
+                    } else if (["SPAM", "PHISHING", "MALICIOUS", "AUTH_FAILED", "DLP_VIOLATION"].includes(email.threat_verdict)) {
+                        noticeEl.innerText = `Alert: Elevated threat (${email.threat_verdict}) detected. Exercise caution.`;
+                    } else {
+                        noticeEl.innerText = "Message passed all threat evaluations and is verified clean.";
+                    }
+                }
 
                 document.getElementById("reviewIsolationBadge").innerText = "MODE: " + email.isolation_mode;
 
@@ -598,9 +635,16 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             const token = getAuthToken();
+            const role = getAuthRole();
             if (!token) {
-                window.location.replace("../index.html");
+                window.location.replace("../login.html");
                 return;
+            }
+            if (role === "ADMIN") {
+                const banner = document.getElementById("adminModeBanner");
+                if (banner) banner.classList.remove("d-none");
+                const navBtn = document.getElementById("returnToAdminNavBtn");
+                if (navBtn) navBtn.classList.remove("d-none");
             }
             loadPreventionRules();
             loadEmails();

@@ -49,8 +49,8 @@ async def list_emails(
         except Exception:
             pass
 
-    if current_user.role != "ADMIN":
-        stmt = stmt.where(Email.user_id == int(current_user.sub))
+    # Personal mailbox queries are strictly isolated to the caller's own mailbox
+    stmt = stmt.where(Email.user_id == int(current_user.sub))
 
     if status_filter:
         stmt = stmt.where(Email.status == status_filter)
@@ -79,8 +79,8 @@ async def get_email_detail(
     if not email:
         raise NotFoundError("Email not found")
 
-    if current_user.role != "ADMIN" and email.user_id != int(current_user.sub):
-        raise PermissionDeniedError("Access to this email is restricted")
+    if email.user_id != int(current_user.sub):
+        raise PermissionDeniedError("Access to this email is restricted to the recipient only")
 
     return email
 
@@ -109,6 +109,7 @@ async def scan_manual_email(
 @router.post("/sync-gmail")
 async def sync_gmail_inbox(
     max_messages: int = Query(10, ge=1, le=50),
+    query: Optional[str] = Query("is:unread newer_than:2d"),
     current_user: TokenPayload = Depends(get_current_user_token),
     db: AsyncSession = Depends(get_db)
 ):
@@ -124,7 +125,9 @@ async def sync_gmail_inbox(
         }
 
     try:
-        raw_messages = await gmail_sync_service.fetch_recent_messages(user, max_results=max_messages, db=db)
+        raw_messages = await gmail_sync_service.fetch_recent_messages(
+            user, max_results=max_messages, db=db, query=query, skip_existing=True
+        )
     except Exception as e:
         return {
             "status": "error",
@@ -134,7 +137,7 @@ async def sync_gmail_inbox(
     synced_results = []
 
     for msg in raw_messages:
-        stmt = select(Email).where(Email.gmail_message_id == msg.get("gmail_message_id"))
+        stmt = select(Email).where(Email.gmail_message_id == msg.get("gmail_message_id"), Email.user_id == user.id)
         existing = (await db.execute(stmt)).scalar_one_or_none()
         if existing:
             if existing.status in ["QUARANTINED", "BLOCKED"]:
@@ -153,6 +156,7 @@ async def sync_gmail_inbox(
             body_html=msg.get("body_html", ""),
             gmail_message_id=msg.get("gmail_message_id"),
             attachments_meta=msg.get("attachments", []),
+            raw_headers=msg.get("raw_headers", {}),
             db=db
         )
         synced_results.append(res)

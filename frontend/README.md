@@ -9,7 +9,8 @@ This directory contains the standalone, decoupled frontend for the **Mailguard S
 - **No Server Dependencies**: Pure HTML5, Vanilla JavaScript, CSS3 with Bootstrap 5, Bootstrap Icons, and Glassmorphism styling.
 - **Dynamic Configuration**: Automatically discovers backend URL or connects to your Render backend via `js/config.js` or via UI settings modal.
 - **Unified Portals**:
-  - `index.html`: Employee & Admin Login with Google OAuth support and corporate credential auth.
+  - `index.html`: Enterprise Security Gateway Home & Defense Overview landing page.
+  - `login.html`: Employee & Admin Login with Google OAuth support and corporate credential auth.
   - `portal/employee.html`: Employee Spam Pre-Blocking Rules, Inspected Inbox, Gmail Sync, Deep Email Review Modal, and Admin Release Request Tickets.
   - `portal/admin.html`: SOC Security Operations Dashboard, Real-Time KPI Cards, Active Employee Sessions & Revocation, Quarantine/Isolation Manager, Release Request Approvals, ML Tuning & Retraining, DLP Incidents, and Audit Logs.
 - **Theme Switcher**: Dark & Light mode toggle with persistent state.
@@ -50,7 +51,7 @@ let defaultApiBase = isLocalhost ? "http://localhost:8000" : "https://your-backe
 *(Replace `https://your-backend-name.onrender.com` with your live Render backend URL).*
 
 ### Way B: In the Web Browser UI
-On the login page (`index.html`), click the **Backend API** button at the top-right corner, enter your Render backend URL, and click **Save & Reload**.
+On any page (`index.html` or `login.html`), click the **Backend API** button at the top-right corner, enter your Render backend URL, and click **Save & Reload**.
 
 ### Way C: Netlify Proxy Rewrite (Zero CORS)
 In `frontend/netlify.toml`, uncomment the proxy rule:

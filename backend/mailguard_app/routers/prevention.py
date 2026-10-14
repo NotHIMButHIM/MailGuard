@@ -21,6 +21,8 @@ async def list_prevention_rules(
     current_user: TokenPayload = Depends(get_current_user_token),
     db: AsyncSession = Depends(get_db)
 ):
+    if current_user.role == "ADMIN":
+        return []
     user_id = int(current_user.sub)
     stmt = select(EmployeePreventionRule).where(EmployeePreventionRule.user_id == user_id).order_by(EmployeePreventionRule.created_at.desc())
     rules = (await db.execute(stmt)).scalars().all()
@@ -33,11 +35,15 @@ async def create_prevention_rule(
     current_user: TokenPayload = Depends(get_current_user_token),
     db: AsyncSession = Depends(get_db)
 ):
+    if current_user.role == "ADMIN":
+        raise PermissionDeniedError("Admin accounts cannot configure employee prevention rules. Rules are exclusively set by employees for their personal mailboxes.")
+
     user_id = int(current_user.sub)
+    clean_pattern = rule_in.pattern.strip().lower() if rule_in.rule_type in ["BLOCK_SENDER", "BLOCK_DOMAIN"] else rule_in.pattern.strip()
     rule = EmployeePreventionRule(
         user_id=user_id,
         rule_type=rule_in.rule_type,
-        pattern=rule_in.pattern,
+        pattern=clean_pattern,
         action=rule_in.action or "BLOCK",
         is_active=rule_in.is_active if rule_in.is_active is not None else True
     )

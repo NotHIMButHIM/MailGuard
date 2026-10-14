@@ -88,16 +88,22 @@ class GmailSyncService:
         self,
         user: User,
         max_results: int = 10,
-        db: Optional[AsyncSession] = None
+        db: Optional[AsyncSession] = None,
+        query: Optional[str] = "is:unread newer_than:2d",
+        skip_existing: bool = True
     ) -> List[Dict[str, Any]]:
         access_token = await self._get_valid_access_token(user, db)
         if not access_token:
             return []
 
         async with httpx.AsyncClient(timeout=15.0) as client:
+            fetch_params = {"maxResults": max_results, "includeSpamTrash": True}
+            if query:
+                fetch_params["q"] = query
+
             res = await client.get(
                 "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-                params={"maxResults": max_results, "includeSpamTrash": True},
+                params=fetch_params,
                 headers={"Authorization": f"Bearer {access_token}"}
             )
 
@@ -110,11 +116,16 @@ class GmailSyncService:
                         await db.commit()
                     res = await client.get(
                         "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-                        params={"maxResults": max_results, "includeSpamTrash": True},
+                        params=fetch_params,
                         headers={"Authorization": f"Bearer {access_token}"}
                     )
 
             if res.status_code != 200:
+                if res.status_code == 401:
+                    raise MailguardException(
+                        status_code=401,
+                        detail="Your Google Gmail session has expired. Please click Logout (top right) and sign in with Google again to refresh your session."
+                    )
                 err_data = {}
                 try:
                     err_data = res.json()
@@ -130,8 +141,21 @@ class GmailSyncService:
             messages_meta = data.get("messages", [])
             full_messages = []
 
+            from mailguard_app.models.email import Email
+            from sqlalchemy import select
+
             for meta in messages_meta:
                 msg_id = meta.get("id")
+                if not msg_id:
+                    continue
+
+                # Pre-check: skip message if already scanned & recorded for this user
+                if skip_existing and db:
+                    stmt = select(Email.id).where(Email.gmail_message_id == msg_id, Email.user_id == user.id)
+                    existing_id = (await db.execute(stmt)).scalar_one_or_none()
+                    if existing_id:
+                        continue
+
                 msg_res = await client.get(
                     f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg_id}",
                     params={"format": "full"},
@@ -250,12 +274,13 @@ class GmailSyncService:
         self,
         user: User,
         max_results: int = 15,
-        db: Optional[AsyncSession] = None
+        db: Optional[AsyncSession] = None,
+        query: Optional[str] = "is:unread newer_than:2d"
     ) -> Dict[str, Any]:
         if not db:
             return {"status": "skipped", "synced_count": 0, "filtered_threats": 0}
 
-        messages = await self.fetch_recent_messages(user, max_results=max_results, db=db)
+        messages = await self.fetch_recent_messages(user, max_results=max_results, db=db, query=query, skip_existing=True)
         from mailguard_app.models.email import Email
         from mailguard_app.services.scanner import mail_scanner
         from sqlalchemy import select
@@ -291,6 +316,10 @@ class GmailSyncService:
             )
             synced_count += 1
             if res.get("status") in ["QUARANTINED", "BLOCKED"]:
+                try:
+                    await self.quarantine_gmail_message(user, msg_id, db=db)
+                except Exception:
+                    pass
                 filtered_threats += 1
 
         return {

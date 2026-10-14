@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mailguard - Enterprise Email Security Gateway</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/static/css/main.css?v=3">
+    <style>
+        .hero-section {
+            padding: 5rem 0 3.5rem 0;
+            position: relative;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 1rem;
+            border-radius: 9999px;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            color: #38bdf8;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 1.5rem;
+        }
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #10b981;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        .portal-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .portal-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(56, 189, 248, 0.45);
+            box-shadow: 0 12px 30px -10px rgba(14, 165, 233, 0.25);
+        }
+        .portal-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: transparent;
+            transition: background 0.3s ease;
+        }
+        .portal-card.emp-card:hover::before {
+            background: linear-gradient(90deg, #38bdf8, #06b6d4);
+        }
+        .portal-card.admin-card:hover::before {
+            background: linear-gradient(90deg, #f59e0b, #ef4444);
+        }
+        .feature-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.5rem;
+            transition: all 0.25s ease;
+            height: 100%;
+        }
+        .feature-card:hover {
+            border-color: rgba(56, 189, 248, 0.3);
+            background: rgba(15, 23, 42, 0.7);
+        }
+        .feature-icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+        }
+        .metric-ribbon {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+        }
+    </style>
+    <script>
+        (function() {
+            const theme = localStorage.getItem("mailguard_theme") || "dark";
+            document.documentElement.setAttribute("data-theme", theme);
+            document.documentElement.setAttribute("data-bs-theme", theme);
+        })();
+    </script>
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg border-bottom border-secondary border-opacity-25 px-4 py-3 glass-panel rounded-0 sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+                <i class="bi bi-shield-lock-fill text-info fs-4"></i>
+                <span class="brand-gradient fs-5 tracking-wide fw-bold">MAILGUARD</span>
+            </a>
+            <div class="d-flex align-items-center gap-3">
+                <a href="#features" class="nav-link text-muted d-none d-md-inline small">Security Features</a>
+                <a href="#portals" class="nav-link text-muted d-none d-md-inline small">Portals</a>
+                <button type="button" onclick="toggleTheme()" class="theme-toggle-btn btn-sm" title="Toggle Theme">
+                    <i class="theme-toggle-icon bi bi-sun-fill"></i>
+                </button>
+                <div id="authNavBox">
+                    <a href="/login" class="btn btn-info btn-sm px-3 fw-semibold shadow-sm d-flex align-items-center gap-1">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        <span>Sign In</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container my-auto">
+        <!-- Hero Section -->
+        <section class="hero-section text-center">
+            <div class="hero-badge shadow-sm">
+                <span class="pulse-dot"></span>
+                <span>Zero-Trust Enterprise Email Security • Active Gateway</span>
+            </div>
+
+            <h1 class="display-4 fw-bold mb-3 brand-gradient text-uppercase tracking-tight" style="letter-spacing: -0.5px;">
+                Advanced Email Security &amp; Threat Isolation
+            </h1>
+
+            <p class="lead text-muted mx-auto mb-4" style="max-width: 760px; font-size: 1.15rem; line-height: 1.7;">
+                Comprehensive inbound email protection engineered with dual machine learning classifiers, 
+                Anti-BEC impersonation detection, time-of-click SafeLinks rewriting, and isolated sandbox previewing.
+            </p>
+
+            <div class="d-flex align-items-center justify-content-center gap-3 flex-wrap mb-5">
+                <a href="/login" class="btn btn-info px-4 py-2 fs-6 fw-semibold d-flex align-items-center gap-2 shadow">
+                    <span>Select Portal / Sign In</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+                <a href="#features" class="btn btn-outline-light px-4 py-2 fs-6 border-secondary border-opacity-50">
+                    <i class="bi bi-shield-check me-1 text-info"></i> Explore Defenses
+                </a>
+            </div>
+
+            <!-- Metric Stats Ribbon -->
+            <div class="metric-ribbon p-3 p-md-4 mb-5 shadow-sm">
+                <div class="row g-3 text-center">
+                    <div class="col-6 col-md-3 border-end border-secondary border-opacity-25">
+                        <div class="fs-4 fw-bold text-info">99.8%</div>
+                        <div class="text-muted small">ML Detection Accuracy</div>
+                    </div>
+                    <div class="col-6 col-md-3 border-end border-secondary border-opacity-25">
+                        <div class="fs-4 fw-bold text-success">&lt; 50ms</div>
+                        <div class="text-muted small">Inspection Latency</div>
+                    </div>
+                    <div class="col-6 col-md-3 border-end border-secondary border-opacity-25">
+                        <div class="fs-4 fw-bold text-warning">Zero-Click</div>
+                        <div class="text-muted small">Sandbox Isolation</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="fs-4 fw-bold text-primary">Time-of-Click</div>
+                        <div class="text-muted small">SafeLinks URL Defense</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Choose Your Portal Section -->
+        <section id="portals" class="mb-5">
+            <div class="text-center mb-4">
+                <h3 class="fw-bold text-light mb-1">Choose Your Portal</h3>
+                <p class="text-muted small">Select your role to access your dedicated Mailguard workspace.</p>
+            </div>
+
+            <div class="row g-4 justify-content-center">
+                <!-- Employee Portal Card -->
+                <div class="col-md-6 col-lg-5">
+                    <div class="portal-card emp-card p-4 h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div class="feature-icon-box bg-info bg-opacity-10 text-info">
+                                    <i class="bi bi-person-workspace"></i>
+                                </div>
+                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">Employee Defense</span>
+                            </div>
+                            <h4 class="fw-bold text-light mb-2">Employee Prevention Portal</h4>
+                            <p class="text-muted small mb-4">
+                                Inspect personal incoming emails, configure custom spam pre-blocking rules, 
+                                scan suspicious emails on-demand, and inspect isolated plain-text or sandboxed HTML previews.
+                            </p>
+                            <ul class="list-unstyled small text-muted mb-4">
+                                <li class="mb-2"><i class="bi bi-check2-circle text-info me-2"></i>Personal sender &amp; domain pre-blocking filters</li>
+                                <li class="mb-2"><i class="bi bi-check2-circle text-info me-2"></i>Automated Gmail threat sync &amp; quarantine</li>
+                                <li class="mb-2"><i class="bi bi-check2-circle text-info me-2"></i>Request admin release with risk tickets</li>
+                            </ul>
+                        </div>
+                        <a href="/login?tab=employee" class="btn btn-outline-info w-100 py-2 d-flex align-items-center justify-content-center gap-2 fw-semibold">
+                            <span>Launch Employee Portal</span>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- SOC Admin Portal Card -->
+                <div class="col-md-6 col-lg-5">
+                    <div class="portal-card admin-card p-4 h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div class="feature-icon-box bg-warning bg-opacity-10 text-warning">
+                                    <i class="bi bi-shield-lock-fill"></i>
+                                </div>
+                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25">SOC Operations</span>
+                            </div>
+                            <h4 class="fw-bold text-light mb-2">SOC Admin Operations Portal</h4>
+                            <p class="text-muted small mb-4">
+                                Enterprise command center featuring live telemetry metrics, active session monitoring with one-click revocation, 
+                                live ML model testbench, DLP audits, and quarantine release management.
+                            </p>
+                            <ul class="list-unstyled small text-muted mb-4">
+                                <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i>Real-time SOC telemetry &amp; security metrics</li>
+                                <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i>Live employee active session monitor &amp; revocation</li>
+                                <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i>Quarantine release ticket approval &amp; DLP logs</li>
+                            </ul>
+                        </div>
+                        <a href="/login?tab=admin" class="btn btn-outline-warning w-100 py-2 d-flex align-items-center justify-content-center gap-2 fw-semibold">
+                            <span>Launch Admin Portal</span>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Defense Capabilities Grid -->
+        <section id="features" class="mb-5 pt-3">
+            <div class="text-center mb-4">
+                <h3 class="fw-bold text-light mb-1">Multi-Layer Security Architecture</h3>
+                <p class="text-muted small">Defense-in-depth inspection pipeline protecting against sophisticated email threat vectors.</p>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="feature-card">
+                        <div class="feature-icon-box bg-primary bg-opacity-10 text-primary">
+                            <i class="bi bi-cpu"></i>
+                        </div>
+                        <h6 class="fw-bold text-light mb-2">Dual ML Threat Classifiers</h6>
+                        <p class="text-muted small mb-0">
+                            Neural TF-IDF and Naive Bayes models trained on 5,500+ samples evaluate spam &amp; phishing probabilities with high accuracy.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="feature-card">
+                        <div class="feature-icon-box bg-danger bg-opacity-10 text-danger">
+                            <i class="bi bi-person-x"></i>
+                        </div>
+                        <h6 class="fw-bold text-light mb-2">Anti-BEC Impersonation Shield</h6>
+                        <p class="text-muted small mb-0">
+                            Detects display name spoofing and executive role impersonation from external freemail providers with critical red alerts.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="feature-card">
+                        <div class="feature-icon-box bg-info bg-opacity-10 text-info">
+                            <i class="bi bi-link-45deg"></i>
+                        </div>
+                        <h6 class="fw-bold text-light mb-2">Time-of-Click SafeLinks</h6>
+                        <p class="text-muted small mb-0">
+                            Rewrites links to dynamically verify destination reputation upon click, blocking IP connections and suspicious TLDs.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="feature-card">
+                        <div class="feature-icon-box bg-warning bg-opacity-10 text-warning">
+                            <i class="bi bi-shield-shaded"></i>
+                        </div>
+                        <h6 class="fw-bold text-light mb-2">Data Loss Prevention (DLP)</h6>
+                        <p class="text-muted small mb-0">
+                            Automatically inspects outbound and inbound bodies for PAN, Aadhaar, SSN, and Credit Cards with character masking.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="feature-card">
+                        <div class="feature-icon-box bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-envelope-check"></i>
+                        </div>
+                        <h6 class="fw-bold text-light mb-2">Domain Authentication Engine</h6>
+                        <p class="text-muted small mb-0">
+                            Rigorous validation of SPF, DKIM, and DMARC DNS policies to intercept unauthorized relays and spoofed domains.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="feature-card">
+                        <div class="feature-icon-box bg-purple bg-opacity-10 text-info" style="background: rgba(168, 85, 247, 0.1);">
+                            <i class="bi bi-box" style="color: #c084fc;"></i>
+                        </div>
+                        <h6 class="fw-bold text-light mb-2">Sandboxed HTML Previews</h6>
+                        <p class="text-muted small mb-0">
+                            Inspect flagged emails in isolated sandboxed iframes with scripts defanged, preventing drive-by payload triggers.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-top border-secondary border-opacity-25 py-4 mt-auto glass-panel rounded-0 text-center text-muted small">
+        <div class="container d-flex flex-column flex-sm-row align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-shield-lock-fill text-info"></i>
+                <span class="text-light fw-semibold">Mailguard</span>
+                <span>• Enterprise Zero-Trust Email Security</span>
+            </div>
+            <div>
+                <a href="/login" class="text-info text-decoration-none me-3">Login Portal</a>
+                <span>&copy; 2026 Mailguard Security Gateway</span>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/main.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const token = window.getAuthToken ? window.getAuthToken() : null;
+            const role = window.getAuthRole ? window.getAuthRole() : null;
+            const authBox = document.getElementById("authNavBox");
+            if (token && authBox) {
+                const targetPortal = (role === "ADMIN") ? "/portal/admin" : "/portal/employee";
+                authBox.innerHTML = `
+                    <a href="${targetPortal}" class="btn btn-outline-info btn-sm px-3 fw-semibold d-flex align-items-center gap-1">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Go to Portal</span>
+                    </a>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
