@@ -163,29 +163,24 @@ async def list_active_employee_sessions(
     admin_user: TokenPayload = Depends(require_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
-
-    # Deactivate sessions older than 15 minutes of inactivity
-    await db.execute(
-        update(UserSession)
-        .where(UserSession.is_active == True, UserSession.last_activity < cutoff)
-        .values(is_active=False)
-    )
-
-    # Purge inactive sessions so they do not accumulate
-    await db.execute(
-        delete(UserSession)
-        .where(UserSession.is_active == False)
-    )
-
-    # Keep active admin's session timestamp refreshed
-    if admin_user.sub:
+    # Keep active admin's session timestamp refreshed and active
+    current_uid = int(admin_user.sub) if admin_user.sub else None
+    if current_uid:
         await db.execute(
             update(UserSession)
-            .where(UserSession.user_id == int(admin_user.sub), UserSession.is_active == True)
-            .values(last_activity=datetime.now(timezone.utc))
+            .where(UserSession.user_id == current_uid)
+            .values(last_activity=datetime.now(timezone.utc), is_active=True)
         )
 
+    # Deactivate other sessions older than 60 minutes of inactivity (exclude current admin)
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=60)
+    deact_stmt = update(UserSession).where(
+        UserSession.is_active == True,
+        UserSession.last_activity < cutoff
+    )
+    if current_uid:
+        deact_stmt = deact_stmt.where(UserSession.user_id != current_uid)
+    await db.execute(deact_stmt)
     await db.commit()
 
     stmt = (

@@ -45,8 +45,15 @@ async def get_current_user_token(
     if payload.session_token:
         stmt = select(UserSession).where(UserSession.session_token == payload.session_token)
         sess = (await db.execute(stmt)).scalar_one_or_none()
-        if not sess or not sess.is_active:
-            raise AuthenticationError("Session has been revoked or expired. Please log in again.")
+        if sess and not sess.is_active:
+            raise AuthenticationError("Session has been revoked. Please log in again.")
+        if sess:
+            from datetime import datetime, timezone
+            sess.last_activity = datetime.now(timezone.utc)
+            try:
+                await db.commit()
+            except Exception:
+                pass
     return payload
 
 

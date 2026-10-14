@@ -21,7 +21,7 @@ services:
       - key: DEBUG
         value: false
       - key: SECRET_KEY
-        generateValue: true
+        value: e83a93b4f62080a2dfca5e119424c8bfa92305bf998a44b9148d423cf9e9c51a
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: 120
       - key: CORS_ORIGINS

@@ -1,4 +1,6 @@
 /login                 /login.html            200
+/portal/login.html     /login.html            200
+/portal/login          /login.html            200
 /portal/employee       /portal/employee.html  200
 /portal/admin          /portal/admin.html     200
 /api/*                 https://mailguard-backend-ewuc.onrender.com/api/:splat  200!

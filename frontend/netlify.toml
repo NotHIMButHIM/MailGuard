@@ -16,6 +16,16 @@
   status = 200
 
 [[redirects]]
+  from = "/portal/login.html"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/portal/login"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
   from = "/portal/employee"
   to = "/portal/employee.html"
   status = 200
